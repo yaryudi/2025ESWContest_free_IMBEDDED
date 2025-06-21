@@ -32,10 +32,11 @@ class CardDetector:
     def __init__(self, num_players=5):
         self.picam2 = Picamera2()
         config = self.picam2.create_preview_configuration(
-            main={"size": (3840, 2160), "format": "RGB888"},
+            main={"size": (4608, 2592), "format": "RGB888"},
             controls={
-                
-                "ScalerCrop": (0, 0, 3840, 2160)
+                "AeExposureMode": 1,
+                "ExposureValue": -0.5,
+                "ScalerCrop": (0, 0, 4608, 2592)
             }
         )
         self.picam2.configure(config)
@@ -50,41 +51,40 @@ class CardDetector:
         self.last_coordinate_extraction = 0
 
     def update_card_positions(self):
-        """플레이어 수에 따라 카드 위치 정보를 업데이트"""
+            """플레이어 수에 따라 카드 위치 정보를 업데이트"""
+            positions = {}
+            current_index = 0
 
-        positions = {}
-        current_index = 0
+            if self.num_players == 2:
+                for i in range(1, 3):
+                    positions[f'player{i}'] = [current_index, current_index + 1]
+                    current_index += 2
 
-        if self.num_players == 2:
-            for i in range(1, 3):
-                positions[f'player{i}'] = [current_index, current_index + 1]
+            if self.num_players == 3:
+                for i in range(1, 4):
+                    positions[f'player{i}'] = [current_index, current_index + 1]
+                    current_index += 2
+
+            # # 덱 ( 덱 카드 인식 안함 )
+            # positions['deck'] = [current_index]
+            # current_index += 1
+
+            # 커뮤니티 카드
+            positions['community'] = list(range(current_index, current_index + 5))
+            current_index += 5
+
+            # 플레이어 4, 5의 카드 (선택적)
+            if self.num_players == 4:
+                positions['player4'] = [current_index, current_index + 1]
+                current_index += 2
+            if self.num_players == 5:
+                positions['player5'] = [current_index, current_index + 1]
+                current_index += 2
+                positions['player4'] = [current_index, current_index + 1]
                 current_index += 2
 
-        if self.num_players == 3:
-            for i in range(1, 4):
-                positions[f'player{i}'] = [current_index, current_index + 1]
-                current_index += 2
-
-        # # 덱 ( 덱 카드 인식 안함 )
-        # positions['deck'] = [current_index]
-        # current_index += 1
-
-        # 커뮤니티 카드
-        positions['community'] = list(range(current_index, current_index + 5))
-        current_index += 5
-
-        # 플레이어 4, 5의 카드 (선택적)
-        if self.num_players == 4:
-            positions['player4'] = [current_index, current_index + 1]
-            current_index += 2
-        if self.num_players == 5:
-            positions['player5'] = [current_index, current_index + 1]
-            current_index += 2
-            positions['player4'] = [current_index, current_index + 1]
-            current_index += 2
-
-        self.card_positions = positions
-        self.total_cards = current_index
+            self.card_positions = positions
+            self.total_cards = current_index
 
     def extract_card_coordinates(self):
         """카드 좌표만 추출하여 저장"""
@@ -92,7 +92,6 @@ class CardDetector:
             image = self.picam2.capture_array()
             image_path = f"assets/test_image/capture.jpg"
             cv2.imwrite(image_path, image)
-            
             card_contours = self.detect_card_edges(image)
             
             if card_contours and len(card_contours) >= self.total_cards:
@@ -166,8 +165,8 @@ class CardDetector:
                 detected_cards[i] = result
             
             # 첫 번째 카드 이미지 저장 (디버깅용)
-            if warped_images:
-                cv2.imwrite("assets/test_image/result.jpg", warped_images[0])
+            # if warped_images:
+            #     cv2.imwrite("assets/test_image/result.jpg", warped_images[0])
             
             return detected_cards
             
@@ -177,34 +176,81 @@ class CardDetector:
 
     def detect_player_cards(self, player_num):
         """특정 플레이어의 카드만 인식"""
-        if f'player{player_num}' in self.card_positions:
-            indices = self.card_positions[f'player{player_num}']
-            return self.detect_specific_cards(indices)
-        return None
+        # 플레이어 번호에 따라 실제 카드 위치 계산
+        if player_num == 1:
+            player_indices = [0, 1]
+        elif player_num == 2:
+            player_indices = [2, 3]
+        elif player_num == 3:
+            player_indices = [4, 5]
+        elif player_num == 4:
+            # 플레이어 4의 위치는 플레이어 수에 따라 다름
+            if self.num_players == 4:
+                player_indices = [11, 12]  # 커뮤니티 카드(5장) 이후
+            elif self.num_players == 5:
+                player_indices = [13, 14]  # 커뮤니티 카드(5장) + P5(2장) 이후
+        elif player_num == 5:
+            if self.num_players == 5:
+                player_indices = [11, 12]  # 커뮤니티 카드(5장) 이후
+        else:
+            return None
+        
+        return self.detect_specific_cards(player_indices)
 
     def detect_flop_cards(self):
         """플랍 카드 3장만 인식"""
-        community_indices = self.card_positions['community'][:3]
-        return self.detect_specific_cards(community_indices)
+        # 플레이어 수에 따라 커뮤니티 카드의 실제 시작 위치 계산
+        if self.num_players == 2:
+            community_start = 4
+        else:
+            community_start = 6
+        
+        # 플랍 카드 3장의 인덱스
+        flop_indices = [community_start, community_start + 1, community_start + 2]
+        return self.detect_specific_cards(flop_indices)
 
     def detect_turn_card(self):
         """턴 카드 1장만 인식"""
-        turn_index = self.card_positions['community'][3]
+        # 플레이어 수에 따라 커뮤니티 카드의 실제 시작 위치 계산
+        if self.num_players == 2:
+            community_start = 4
+        else:
+            community_start = 6
+        
+        # 턴 카드 인덱스 (커뮤니티 카드 4번째)
+        turn_index = community_start + 3
         results = self.detect_specific_cards([turn_index])
         return results[0] if results else None
 
     def detect_river_card(self):
         """리버 카드 1장만 인식"""
-        river_index = self.card_positions['community'][4]
+        # 플레이어 수에 따라 커뮤니티 카드의 실제 시작 위치 계산
+        if self.num_players == 2:
+            community_start = 4
+        else:
+            community_start = 6
+        
+        # 리버 카드 인덱스 (커뮤니티 카드 5번째)
+        river_index = community_start + 4
         results = self.detect_specific_cards([river_index])
         return results[0] if results else None
 
     def detect_all_player_cards(self):
         """모든 플레이어의 카드를 인식"""
         all_player_indices = []
-        for i in range(1, self.num_players + 1):
-            if f'player{i}' in self.card_positions:
-                all_player_indices.extend(self.card_positions[f'player{i}'])
+        
+        # 플레이어 1, 2, 3은 항상 같은 위치
+        all_player_indices.extend([0, 1])  # P1
+        all_player_indices.extend([2, 3])  # P2
+        all_player_indices.extend([4, 5])  # P3
+        
+        # 플레이어 4, 5는 플레이어 수에 따라 위치가 다름
+        if self.num_players >= 4:
+            if self.num_players == 4:
+                all_player_indices.extend([11, 12])  # P4
+            elif self.num_players == 5:
+                all_player_indices.extend([11, 12])  # P5
+                all_player_indices.extend([13, 14])  # P4
         
         return self.detect_specific_cards(all_player_indices)
 
@@ -223,7 +269,7 @@ class CardDetector:
         MAX_RATIO = 1.0
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(gray, 220, 255, cv2.THRESH_BINARY)
-        cv2.imwrite("./grayimg.jpg", thresh)
+        cv2.imwrite("./assets/test_image/grayimg.jpg", thresh)
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
             return []
@@ -287,22 +333,23 @@ class CardDetector:
             centers.append((cy, cx, contour))
         
         # 행(row) 기준으로 먼저 정렬 (위에서 아래로)
-        centers.sort(key=lambda x: x[0] // 60)  # 60픽셀 단위로 행 구분
+        centers.sort(key=lambda x: x[0] // 100)  # 60픽셀 단위로 행 구분
         
         # 각 행 내에서 열(column) 기준으로 정렬 (왼쪽에서 오른쪽으로)
         sorted_contours = []
-        current_row = centers[0][0] // 60
+        current_row = centers[0][0] // 100
         row_contours = []
         
         for center in centers:
-            if center[0] // 60 == current_row:
+            if center[0] // 100 == current_row:
+                print(center[0])
                 row_contours.append(center)
             else:
                 # 현재 행의 윤곽선들을 x좌표로 정렬
                 row_contours.sort(key=lambda x: x[1])
                 sorted_contours.extend([c[2] for c in row_contours])
                 row_contours = [center]
-                current_row = center[0] // 60
+                current_row = center[0] // 100
         
         # 마지막 행 처리
         if row_contours:
@@ -317,23 +364,3 @@ class CardDetector:
         self.pool.close()
         self.pool.join()
 
-# # 테스트 함수
-# if __name__ == "__main__":
-#     detector = CardDetector(num_players=3)
-    
-#     print("카드 좌표 추출 중...")
-#     if detector.extract_card_coordinates():
-#         print("좌표 추출 성공!")
-        
-#         print("플랍 카드 인식 중...")
-#         flop_cards = detector.detect_flop_cards()
-#         print(f"플랍 카드: {flop_cards}")
-        
-#         print("플레이어 1 카드 인식 중...")
-#         player1_cards = detector.detect_player_cards(1)
-#         print(f"플레이어 1 카드: {player1_cards}")
-        
-#     else:
-#         print("좌표 추출 실패!")
-    
-#     detector.close()

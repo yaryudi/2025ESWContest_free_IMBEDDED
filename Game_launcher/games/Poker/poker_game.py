@@ -5,7 +5,7 @@
 
 import random
 import math
-from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QInputDialog, QSpinBox, QVBoxLayout, QHBoxLayout, QDialog, QGraphicsDropShadowEffect, QGraphicsScene, QGraphicsView, QGraphicsProxyWidget
+from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QInputDialog, QSpinBox, QVBoxLayout, QHBoxLayout, QDialog, QGraphicsDropShadowEffect, QGraphicsScene, QGraphicsView, QGraphicsProxyWidget, QApplication, QMessageBox
 from PyQt5.QtGui import QFont, QColor, QTransform, QPainter, QPixmap, QImage
 from PyQt5.QtCore import Qt, QTimer, QPoint
 from hand_evaluator import HandEvaluator
@@ -75,9 +75,11 @@ class PokerGame(QWidget):
         self.card_width = 80  # 카드 슬롯 크기
         self.card_height = 112
         self.setWindowTitle("텍사스 홀덤 포커")
-        self.setMinimumSize(1280, 720)
-        self.resize(1280, 720)
+        self.setMinimumSize(1280, 800)
+        self.resize(1280, 800)
         self.setStyleSheet("background-color: #0B6623;")
+
+        self.initialization_complete = False
 
         # 게임 상태 변수 초기화
         self.num_players = num_players
@@ -143,7 +145,7 @@ class PokerGame(QWidget):
         self.move(qr.topLeft())
 
         # 카드 인식 기능 초기화
-        self.card_detector = CardDetector()
+        self.card_detector = CardDetector(num_players=self.num_players)
         
         # 화면 보기 버튼 추가
         self.view_button = QPushButton("화면 보기", self)
@@ -173,6 +175,12 @@ class PokerGame(QWidget):
             border-radius: 4px;
         """)
         self.camera_view_label.hide()
+
+        self.initialization_complete = True
+        self.showFullScreen()
+
+        self.update_pot_position()
+        self.reposition_players()
 
     def init_game(self):
         """게임 보드 및 주요 UI 컴포넌트를 초기화합니다."""
@@ -229,6 +237,28 @@ class PokerGame(QWidget):
         """)
         self.deck_label.setAlignment(Qt.AlignCenter)
         self.deck_label.setText("DECK")
+
+        # 게임 종료 버튼 추가 (덱 아래에 배치)
+        self.exit_button = QPushButton("게임 종료", self.board)
+        self.exit_button.setStyleSheet("""
+            QPushButton {
+                background-color: #d32f2f;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #b71c1c;
+            }
+            QPushButton:pressed {
+                background-color: #8e0000;
+            }
+        """)
+        self.exit_button.setFixedSize(120, 40)
+        self.exit_button.clicked.connect(self.close_game)
         
         # 카드 크기 설정
         self.card_width = 80  # 134에서 80으로 축소
@@ -309,6 +339,11 @@ class PokerGame(QWidget):
         # 팟 라벨을 화면 중앙에 위치
         center_x = self.width() // 2
         center_y = self.height() // 2
+
+        if not (hasattr(self, 'community_container') and self.community_container and
+                hasattr(self, 'pot_label') and self.pot_label):
+            return
+
         # 커뮤니티 카드 컨테이너의 위치 계산
         offset_y = 75
         community_y = center_y - 120 + offset_y
@@ -477,10 +512,18 @@ class PokerGame(QWidget):
             self.action_buttons.append(buttons)
 
     def resizeEvent(self, event):
-        self.board.setGeometry(0, 0, self.width(), self.height())  # 창 전체 사용
-        if self.showdown_overlay:
+
+        if not hasattr(self, 'initialization_complete') or not self.initialization_complete:
+            super().resizeEvent(event)
+            return
+
+        super().resizeEvent(event)
+
+        if hasattr(self, 'board') and self.board:
+            self.board.setGeometry(0, 0, self.width(), self.height())  # 창 전체 사용
+        if hasattr(self, 'showdown_overlay') and self.showdown_overlay:
             self.showdown_overlay.setGeometry(0, 0, self.width(), self.height())
-            if self.showdown_view:
+            if hasattr(self, 'showdown_view') and self.showdown_view:
                 self.showdown_view.setGeometry(0, 0, self.width(), self.height())
                 self.showdown_scene.setSceneRect(0, 0, self.width(), self.height())
             self.update_showdown_text_positions()
@@ -490,51 +533,78 @@ class PokerGame(QWidget):
 
         # 커뮤니티 카드 컨테이너 위치 조정
         offset_y = 75
-        community_y = center_y - 120 + offset_y  # 커뮤니티 창의 위치를 약간 위로 조정
-        community_x = center_x - self.community_container.width() // 2
-        self.community_container.move(community_x, community_y)
+        if hasattr(self, 'community_container') and self.community_container:
+            community_y = center_y - 120 + offset_y  # 커뮤니티 창의 위치를 약간 위로 조정
+            community_x = center_x - self.community_container.width() // 2
+            self.community_container.move(community_x, community_y)
+        else:
+            community_x = 0
+            community_y = 0
         
         # 덱(카드 뭉치) 위치 조정 (커뮤니티 카드 왼쪽)
         offset_x = 80
-        deck_x = community_x - self.deck_label.width() - 150 + offset_x
-        deck_y = community_y + (self.community_container.height() - self.deck_label.height()) // 2
-        self.deck_label.move(deck_x, deck_y)
+        if hasattr(self, 'deck_label') and self.deck_label:
+            deck_x = community_x - self.deck_label.width() - 150 + offset_x
+            deck_y = community_y + (self.community_container.height() - self.deck_label.height()) // 2
+            self.deck_label.move(deck_x, deck_y)
+        else:
+            deck_x = 0
+            deck_y = 0
         
+        # 게임 종료 버튼 위치 조정 (덱 아래에 배치)
+        if hasattr(self, 'exit_button') and self.exit_button:
+            exit_x = deck_x + (self.deck_label.width() - self.exit_button.width()) // 2 if hasattr(self, 'deck_label') and self.deck_label else 0
+            exit_y = deck_y + self.deck_label.height() + 20 if hasattr(self, 'deck_label') and self.deck_label else 0
+            self.exit_button.move(exit_x, exit_y)
+
         # 다음 단계 버튼을 덱 왼쪽에 배치
-        button_x = deck_x - self.next_stage_button.width() - 30
-        button_y = deck_y + (self.deck_label.height() - self.next_stage_button.height()) // 2
-        self.next_stage_button.move(button_x, button_y)
+        if hasattr(self, 'next_stage_button') and self.next_stage_button:
+            button_x = deck_x - self.next_stage_button.width() - 30
+            button_y = deck_y + (self.deck_label.height() - self.next_stage_button.height()) // 2
+            self.next_stage_button.move(button_x, button_y)
+        else:
+            button_x = 0
+            button_y = 0
         
         # 화면보기 버튼을 '다음 카드 공개' 버튼 위로 이동
-        view_btn_x = button_x
-        view_btn_y = button_y - self.view_button.height() - 10  # 10px 여유
-        self.view_button.setGeometry(view_btn_x, view_btn_y, 100, 40)
+        if hasattr(self, 'view_button') and self.view_button:
+            view_btn_x = button_x
+            view_btn_y = button_y - self.view_button.height() - 10  # 10px 여유
+            self.view_button.setGeometry(view_btn_x, view_btn_y, 100, 40)
 
         # 메시지 라벨을 오른쪽 가운데에 배치
-        message_x = community_x + self.community_container.width() + 50  # 커뮤니티 카드 오른쪽에 50px 간격
-        # 회전된 메시지 라벨을 위한 여백 추가
-        padding = 40
-        label_w = self.rotated_message_label.width()
-        label_h = self.rotated_message_label.height()
-        view_size = max(label_w, label_h) + padding * 2
+        if hasattr(self, 'message_view') and self.message_view and hasattr(self, 'community_container') and self.community_container and hasattr(self, 'rotated_message_label') and self.rotated_message_label:
+            message_x = community_x + self.community_container.width() + 50  # 커뮤니티 카드 오른쪽에 50px 간격
+            # 회전된 메시지 라벨을 위한 여백 추가
+            padding = 40
+            label_w = self.rotated_message_label.width()
+            label_h = self.rotated_message_label.height()
+            view_size = max(label_w, label_h) + padding * 2
 
-        # 메시지 뷰의 중앙이 커뮤니티 카드 컨테이너의 중앙에 오도록
-        community_center_y = community_y + self.community_container.height() // 2
-        message_y = community_center_y - (view_size // 2)
+            # 메시지 뷰의 중앙이 커뮤니티 카드 컨테이너의 중앙에 오도록
+            community_center_y = community_y + self.community_container.height() // 2
+            message_y = community_center_y - (view_size // 2)
 
-        self.message_view.setGeometry(message_x, message_y, view_size, view_size)
-        self.message_scene.setSceneRect(0, 0, view_size, view_size)
-        # 라벨을 QGraphicsView의 중앙에 배치
-        label_x = (view_size - label_w) // 2
-        label_y = (view_size - label_h) // 2
-        self.message_proxy.setPos(label_x, label_y)
-        self.message_proxy.setTransformOriginPoint(label_w / 2, label_h / 2)
+            self.message_view.setGeometry(message_x, message_y, view_size, view_size)
+            self.message_scene.setSceneRect(0, 0, view_size, view_size)
+            # 라벨을 QGraphicsView의 중앙에 배치
+            label_x = (view_size - label_w) // 2
+            label_y = (view_size - label_h) // 2
+            self.message_proxy.setPos(label_x, label_y)
+            self.message_proxy.setTransformOriginPoint(label_w / 2, label_h / 2)
 
         self.update_pot_position()
         self.reposition_players()
-        super().resizeEvent(event)
 
     def reposition_players(self):
+
+        if not (hasattr(self, 'community_container') and self.community_container and
+                hasattr(self, 'player_labels') and self.player_labels and
+                hasattr(self, 'bet_labels') and self.bet_labels and
+                hasattr(self, 'action_buttons') and self.action_buttons and
+                hasattr(self, 'name_labels') and self.name_labels):
+            return
+
         # 카드 크기 및 컨테이너 크기 재설정 (모든 위치 계산에 사용)
         self.card_width = 80
         self.card_height = 112
@@ -585,15 +655,20 @@ class PokerGame(QWidget):
 
         player_container_width = self.card_width * 2 + 20 + 20 + 20
         for i in range(self.num_players):
-            slot_x, slot_y = slot_positions[slot_indices[i]]
-            self.player_labels[i][0].parent().move(slot_x, slot_y)
-            x, y = ui_positions[ui_indices[i]]
-            self.bet_labels[i].parent().move(x, y + 60)
-            for j, btn in enumerate(self.action_buttons[i]):
-                btn_x = x + player_container_width - 20 + (j % 2) * 105
-                btn_y = y + (j // 2) * 40
-                btn.move(btn_x, btn_y)
-            self.name_labels[i].move(x, y)
+            if i < len(self.player_labels) and self.player_labels[i]:
+                slot_x, slot_y = slot_positions[slot_indices[i]]
+                self.player_labels[i][0].parent().move(slot_x, slot_y)
+            if i < len(ui_positions):
+                x, y = ui_positions[ui_indices[i]]
+                if i < len(self.bet_labels) and self.bet_labels[i]:
+                    self.bet_labels[i].parent().move(x, y + 60)
+                if i < len(self.action_buttons) and self.action_buttons[i]:
+                    for j, btn in enumerate(self.action_buttons[i]):
+                        btn_x = x + player_container_width - 20 + (j % 2) * 105
+                        btn_y = y + (j // 2) * 40
+                        btn.move(btn_x, btn_y)
+                if i < len(self.name_labels) and self.name_labels[i]:
+                    self.name_labels[i].move(x, y)
 
     def post_blinds(self):
         # 스몰 블라인드
@@ -1644,12 +1719,15 @@ class PokerGame(QWidget):
     def update_message(self, text):
         """메시지를 업데이트하는 함수"""
         self.rotated_message_label.setText(text)
+        self.rotated_message_label.repaint()
+        # QApplication.processEvents()
 
     def get_flop_cards(self):
         """플랍 카드 3장을 인식하고 저장합니다."""
         max_retries = 3
         retry_count = 0
         self.update_message("플랍 카드 인식 중...")
+        QApplication.processEvents()
         
         while retry_count < max_retries:
             try:
@@ -1659,9 +1737,11 @@ class PokerGame(QWidget):
                         retry_count += 1
                         if retry_count < max_retries:
                             self.update_message("카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
-                            QTimer.singleShot(1000, lambda: None)
+                            QApplication.processEvents()
+                            time.sleep(1)
                         else:
                             self.update_message("카드 좌표 추출에 실패했습니다.")
+                            QApplication.processEvents()
                             return False
                         continue
                 
@@ -1673,31 +1753,38 @@ class PokerGame(QWidget):
                     if len(valid_cards) == 3:
                         self.community_cards[0:3] = valid_cards
                         self.update_message("플랍 카드 인식 완료")
+                        QApplication.processEvents()
                         return True
                     else:
                         retry_count += 1
                         if retry_count < max_retries:
                             self.update_message(f"플랍 카드 인식 실패: {len(valid_cards)}/3장 인식됨\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
-                            QTimer.singleShot(1000, lambda: None)
+                            QApplication.processEvents()
+                            time.sleep(1)
                         else:
                             self.update_message(f"플랍 카드 인식 실패: {len(valid_cards)}/3장 인식됨")
+                            QApplication.processEvents()
                             return False
                 else:
                     retry_count += 1
                     if retry_count < max_retries:
                         self.update_message("플랍 카드 인식에 실패했습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
-                        QTimer.singleShot(1000, lambda: None)
+                        QApplication.processEvents()
+                        time.sleep(1)
                     else:
                         self.update_message("플랍 카드 인식에 실패했습니다.")
+                        QApplication.processEvents()
                         return False
             except Exception as e:
                 print(f"Error in get_flop_cards: {e}")
                 retry_count += 1
                 if retry_count < max_retries:
                     self.update_message(f"카드 인식 중 오류 발생: {str(e)}\n다시 시도중... ({retry_count}/{max_retries})")
-                    QTimer.singleShot(1000, lambda: None)
+                    QApplication.processEvents()
+                    time.sleep(1)
                 else:
                     self.update_message("카드 인식 중 오류가 발생했습니다.")
+                    QApplication.processEvents()
                     return False
         return False
 
@@ -1706,7 +1793,8 @@ class PokerGame(QWidget):
         max_retries = 3
         retry_count = 0
         self.update_message("턴 카드 인식 중...")
-        
+        QApplication.processEvents()
+
         while retry_count < max_retries:
             try:
                 # 좌표가 유효한지 확인하고 필요시 재추출
@@ -1715,9 +1803,11 @@ class PokerGame(QWidget):
                         retry_count += 1
                         if retry_count < max_retries:
                             self.update_message("카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
-                            QTimer.singleShot(1000, lambda: None)
+                            QApplication.processEvents()
+                            time.sleep(1)
                         else:
                             self.update_message("카드 좌표 추출에 실패했습니다.")
+                            QApplication.processEvents()
                             return False
                         continue
                 
@@ -1726,23 +1816,28 @@ class PokerGame(QWidget):
                 if turn_card and turn_card != "Unknown":
                     self.community_cards[3] = turn_card
                     self.update_message("턴 카드 인식 완료")
+                    QApplication.processEvents()
                     return True
                 else:
                     retry_count += 1
                     if retry_count < max_retries:
                         self.update_message("턴 카드 인식 실패: 카드를 인식할 수 없습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
-                        QTimer.singleShot(1000, lambda: None)
+                        QApplication.processEvents()
+                        time.sleep(1)
                     else:
                         self.update_message("턴 카드 인식 실패: 카드를 인식할 수 없습니다.")
+                        QApplication.processEvents()
                         return False
             except Exception as e:
                 print(f"Error in get_turn_card: {e}")
                 retry_count += 1
                 if retry_count < max_retries:
                     self.update_message(f"카드 인식 중 오류 발생: {str(e)}\n다시 시도중... ({retry_count}/{max_retries})")
-                    QTimer.singleShot(1000, lambda: None)
+                    QApplication.processEvents()
+                    time.sleep(1)
                 else:
                     self.update_message("카드 인식 중 오류가 발생했습니다.")
+                    QApplication.processEvents()
                     return False
         return False
 
@@ -1751,7 +1846,8 @@ class PokerGame(QWidget):
         max_retries = 3
         retry_count = 0
         self.update_message("리버 카드 인식 중...")
-        
+        QApplication.processEvents()
+
         while retry_count < max_retries:
             try:
                 # 좌표가 유효한지 확인하고 필요시 재추출
@@ -1760,9 +1856,11 @@ class PokerGame(QWidget):
                         retry_count += 1
                         if retry_count < max_retries:
                             self.update_message("카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
-                            QTimer.singleShot(1000, lambda: None)
+                            QApplication.processEvents()
+                            time.sleep(1)
                         else:
                             self.update_message("카드 좌표 추출에 실패했습니다.")
+                            QApplication.processEvents()
                             return False
                         continue
                 
@@ -1771,23 +1869,28 @@ class PokerGame(QWidget):
                 if river_card and river_card != "Unknown":
                     self.community_cards[4] = river_card
                     self.update_message("리버 카드 인식 완료")
+                    QApplication.processEvents()
                     return True
                 else:
                     retry_count += 1
                     if retry_count < max_retries:
                         self.update_message("리버 카드 인식 실패: 카드를 인식할 수 없습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
-                        QTimer.singleShot(1000, lambda: None)
+                        QApplication.processEvents()
+                        time.sleep(1)
                     else:
                         self.update_message("리버 카드 인식 실패: 카드를 인식할 수 없습니다.")
+                        QApplication.processEvents()
                         return False
             except Exception as e:
                 print(f"Error in get_river_card: {e}")
                 retry_count += 1
                 if retry_count < max_retries:
                     self.update_message(f"카드 인식 중 오류 발생: {str(e)}\n다시 시도중... ({retry_count}/{max_retries})")
-                    QTimer.singleShot(1000, lambda: None)
+                    QApplication.processEvents()
+                    time.sleep(1)
                 else:
                     self.update_message("카드 인식 중 오류가 발생했습니다.")
+                    QApplication.processEvents()
                     return False
         return False
 
@@ -1796,7 +1899,8 @@ class PokerGame(QWidget):
         max_retries = 3
         retry_count = 0
         self.update_message("플레이어 카드 인식 중...")
-        
+        QApplication.processEvents()
+
         while retry_count < max_retries:
             try:
                 # 좌표가 유효한지 확인하고 필요시 재추출
@@ -1805,9 +1909,11 @@ class PokerGame(QWidget):
                         retry_count += 1
                         if retry_count < max_retries:
                             self.update_message("카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
-                            QTimer.singleShot(1000, lambda: None)
+                            QApplication.processEvents()
+                            time.sleep(1)
                         else:
                             self.update_message("카드 좌표 추출에 실패했습니다.")
+                            QApplication.processEvents()
                             return False
                         continue
                 
@@ -1830,23 +1936,28 @@ class PokerGame(QWidget):
                 
                 if all_cards_valid:
                     self.update_message("플레이어 카드 인식 완료")
+                    QApplication.processEvents()
                     return True
                 else:
                     retry_count += 1
                     if retry_count < max_retries:
                         self.update_message("플레이어 카드 인식 실패: 일부 카드를 인식할 수 없습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
-                        QTimer.singleShot(1000, lambda: None)
+                        QApplication.processEvents()
+                        time.sleep(1)
                     else:
                         self.update_message("플레이어 카드 인식 실패: 일부 카드를 인식할 수 없습니다.")
+                        QApplication.processEvents()
                         return False
             except Exception as e:
                 print(f"Error in get_player_cards: {e}")
                 retry_count += 1
                 if retry_count < max_retries:
                     self.update_message(f"카드 인식 중 오류 발생: {str(e)}\n다시 시도중... ({retry_count}/{max_retries})")
-                    QTimer.singleShot(1000, lambda: None)
+                    QApplication.processEvents()
+                    time.sleep(1)
                 else:
                     self.update_message("카드 인식 중 오류가 발생했습니다.")
+                    QApplication.processEvents()
                     return False
         return False
 
@@ -1934,3 +2045,23 @@ class PokerGame(QWidget):
             
         except Exception as e:
             self.update_message(f"카메라 화면 캡처 실패: {str(e)}")
+
+    def keyPressEvent(self, event):
+        """키 이벤트 처리"""
+        if event.key() == Qt.Key_Escape:
+            # ESC 키를 누르면 전체화면 종료
+            self.showNormal()
+        else:
+            super().keyPressEvent(event)
+
+    def close_game(self):
+        """게임을 종료합니다."""
+        # 게임 종료 확인 다이얼로그
+        from PyQt5.QtWidgets import QMessageBox
+        reply = QMessageBox.question(self, '게임 종료', 
+                                   '정말로 게임을 종료하시겠습니까?',
+                                   QMessageBox.Yes | QMessageBox.No,
+                                   QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            self.close()

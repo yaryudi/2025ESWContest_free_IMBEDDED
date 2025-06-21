@@ -14,7 +14,7 @@ class PlayerCountDialog(QWidget):
         super().__init__()
         # 기본 창 설정
         self.setWindowTitle("플레이어 수 선택")
-        self.setFixedSize(1280, 720)
+        self.setFixedSize(1280, 800)
         self.setStyleSheet("background-color: black;")
         self.player_count = 2  # 기본 플레이어 수는 2명
 
@@ -58,6 +58,7 @@ class PlayerCountDialog(QWidget):
         self.start_button.setStyleSheet("QPushButton { background-color: #d9534f; color: white; border-radius: 30px; } QPushButton:hover { background-color: #c9302c; }")
         self.start_button.move(100, 230)
         self.start_button.clicked.connect(self.accept)
+        self.showFullScreen()
 
     def increment(self):
         """플레이어 수를 1 증가시킵니다. 최대 5명까지 가능합니다."""
