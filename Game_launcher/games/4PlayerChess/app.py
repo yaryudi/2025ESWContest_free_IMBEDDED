@@ -21,7 +21,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLineEdit, QPlainTextEdit, QFrame
 from PyQt5.QtGui import QIcon, QResizeEvent
-from PyQt5.QtCore import QRect
+from PyQt5.QtCore import QRect, Qt, QTimer
 from gui.main import MainWindow
 sys.path.append('./4PlayerChess-master/')
 from actors.generate_actors import generate_actors
@@ -40,6 +40,9 @@ def main():
       actors = generate_actors([*sys.argv])
     window = MainWindow(actors, moves)
     
+    # 창을 항상 최상위에 유지하도록 설정 (한 번만)
+    window.setWindowFlags(window.windowFlags() | Qt.WindowStaysOnTopHint)
+    
     # 전체 화면으로 시작하므로 창 크기 설정 제거
     # window.resize(800, 800)
     
@@ -51,6 +54,30 @@ def main():
     
     # Show window normally instead of fullscreen
     window.show()
+    
+    # 창을 맨 앞으로 가져오기
+    window.raise_()
+    window.activateWindow()
+    window.setWindowState(window.windowState() | Qt.WindowActive)
+    
+    # 1초 간격으로 창을 맨 앞으로 가져오는 타이머
+    def bring_to_front():
+        # 최소화된 상태라면 복원
+        if window.isMinimized():
+            window.showNormal()
+        
+        # 강제로 전체화면으로 설정 (다른 창이 전체화면이어도)
+        window.showFullScreen()
+        
+        # 창을 맨 앞으로 가져오기 (깜박임 방지)
+        window.raise_()
+        window.activateWindow()
+        window.setWindowState(window.windowState() | Qt.WindowActive)
+    
+    timer = QTimer()
+    timer.timeout.connect(bring_to_front)
+    timer.start(1000)  # 1초 간격
+    
     sys.exit(app.exec_())
 
 

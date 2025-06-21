@@ -164,7 +164,7 @@ class MouseControlThread(QThread):
         self.NUM_ROWS = 40
         self.NUM_COLS = 30
         self.FRAME_SIZE = self.NUM_ROWS * self.NUM_COLS
-        self.TOUCH_THRESHOLD = 30
+        self.TOUCH_THRESHOLD = 20
         self.SCREEN_W = 1280
         self.SCREEN_H = 800
         

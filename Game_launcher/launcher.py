@@ -1,12 +1,98 @@
 import sys
 import os
 import subprocess
+import psutil
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QScrollArea, QMainWindow, QSizePolicy, QFrame
+    QTextEdit, QScrollArea, QMainWindow, QSizePolicy, QFrame, QMessageBox, QProgressBar
 )
 from PyQt5.QtGui import QPixmap, QCursor, QPainter, QColor, QLinearGradient, QFont, QTextDocument, QTextOption, QTextCursor, QTextBlockFormat
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import Qt, QSize, QTimer, QThread, pyqtSignal
+
+class GameLaunchThread(QThread):
+    """게임 실행을 위한 별도 스레드"""
+    game_started = pyqtSignal()
+    game_failed = pyqtSignal(str)
+    
+    def __init__(self, script_path, game_dir):
+        super().__init__()
+        self.script_path = script_path
+        self.game_dir = game_dir
+        
+    def run(self):
+        try:
+            # 게임 실행
+            process = subprocess.Popen([sys.executable, self.script_path], cwd=self.game_dir)
+            self.game_started.emit()
+        except Exception as e:
+            self.game_failed.emit(str(e))
+
+class LoadingDialog(QFrame):
+    """로딩 다이얼로그"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_ui()
+        
+    def setup_ui(self):
+        self.setFixedSize(300, 150)
+        self.setStyleSheet("""
+            QFrame {
+                background-color: #2b2b2b;
+                border: 2px solid #555;
+                border-radius: 15px;
+            }
+        """)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        
+        # 로딩 텍스트
+        self.loading_label = QLabel("게임을 시작하는 중...")
+        self.loading_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+            }
+        """)
+        self.loading_label.setAlignment(Qt.AlignCenter)
+        
+        # 프로그레스 바
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid #555;
+                border-radius: 10px;
+                text-align: center;
+                background-color: #1a1a1a;
+                color: white;
+                font-weight: bold;
+            }
+            QProgressBar::chunk {
+                background-color: #4CAF50;
+                border-radius: 8px;
+            }
+        """)
+        self.progress_bar.setRange(0, 0)  # 무한 로딩
+        
+        layout.addWidget(self.loading_label)
+        layout.addWidget(self.progress_bar)
+        
+        # 애니메이션 타이머
+        self.animation_timer = QTimer(self)
+        self.animation_timer.timeout.connect(self.update_loading_text)
+        self.dots_count = 0
+        
+    def start_animation(self):
+        self.animation_timer.start(500)  # 0.5초마다 업데이트
+        
+    def stop_animation(self):
+        self.animation_timer.stop()
+        
+    def update_loading_text(self):
+        self.dots_count = (self.dots_count + 1) % 4
+        dots = "." * self.dots_count
+        self.loading_label.setText(f"게임을 시작하는 중{dots}")
 
 class GameLauncher(QMainWindow):
     def __init__(self):
@@ -16,6 +102,17 @@ class GameLauncher(QMainWindow):
         self.setStyleSheet("background-color: #0f0f0f; color: white;")
         self.games = []
         self.current_game = None
+        
+        # 중복 실행 방지 변수들
+        self.running_games = {}  # 실행 중인 게임들을 추적
+        self.loading_dialog = None
+        self.launch_thread = None
+        
+        # 실행 중인 게임 확인 타이머
+        self.game_check_timer = QTimer(self)
+        self.game_check_timer.timeout.connect(self.check_running_games)
+        self.game_check_timer.start(5000)  # 5초마다 확인
+        
         self.initUI()
         
         # 전체 화면으로 설정
@@ -366,10 +463,82 @@ class GameLauncher(QMainWindow):
         self.play_button.setText(f"▶ {game['name']} 시작")
 
     def launch_current_game(self):
-        if self.current_game:
-            script_path = os.path.abspath(self.current_game["path"])
-            game_dir = os.path.dirname(script_path)
-            subprocess.Popen([sys.executable, script_path], cwd=game_dir)
+        if not self.current_game:
+            return
+            
+        game_name = self.current_game["name"]
+        
+        # 이미 실행 중인지 확인
+        if game_name in self.running_games:
+            QMessageBox.information(self, "알림", f"{game_name}이(가) 이미 실행 중입니다.")
+            return
+            
+        # 다른 게임이 실행 중인지 확인
+        if self.running_games:
+            running_game = list(self.running_games.keys())[0]
+            QMessageBox.warning(self, "게임 실행 중", f"{running_game}이(가) 실행 중입니다.\n다른 게임을 실행하려면 먼저 현재 게임을 종료해주세요.")
+            return
+            
+        # 로딩 다이얼로그 표시
+        self.loading_dialog = LoadingDialog(self)
+        self.loading_dialog.start_animation()
+        
+        # 중앙에 배치
+        dialog_x = (self.width() - self.loading_dialog.width()) // 2
+        dialog_y = (self.height() - self.loading_dialog.height()) // 2
+        self.loading_dialog.move(dialog_x, dialog_y)
+        self.loading_dialog.show()
+        
+        # 게임 실행 스레드 시작
+        script_path = os.path.abspath(self.current_game["path"])
+        game_dir = os.path.dirname(script_path)
+        
+        self.launch_thread = GameLaunchThread(script_path, game_dir)
+        self.launch_thread.game_started.connect(lambda: self.on_game_started(game_name))
+        self.launch_thread.game_failed.connect(self.on_game_failed)
+        self.launch_thread.start()
+
+    def on_game_started(self, game_name):
+        """게임이 성공적으로 시작되었을 때"""
+        # 실행 중인 게임 목록에 추가
+        self.running_games[game_name] = True
+        
+        # 로딩 다이얼로그 숨기기
+        if self.loading_dialog:
+            self.loading_dialog.stop_animation()
+            self.loading_dialog.hide()
+            self.loading_dialog = None
+            
+    def on_game_failed(self, error):
+        """게임 시작에 실패했을 때"""
+        # 로딩 다이얼로그 숨기기
+        if self.loading_dialog:
+            self.loading_dialog.stop_animation()
+            self.loading_dialog.hide()
+            self.loading_dialog = None
+            
+        # 오류 메시지 표시
+        QMessageBox.critical(self, "게임 시작 실패", f"게임을 시작하는 중 오류가 발생했습니다.\n{error}")
+
+    def check_running_games(self):
+        """실행 중인 게임들을 확인하고 종료된 게임들을 제거"""
+        for game_name in list(self.running_games.keys()):
+            # psutil을 사용하여 해당 게임 프로세스가 실행 중인지 확인
+            # 실제로는 더 정확한 프로세스 매칭이 필요할 수 있음
+            game_found = False
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    if 'python' in proc.info['name'].lower():
+                        cmdline = proc.info['cmdline']
+                        if cmdline and any(game_name.lower() in arg.lower() for arg in cmdline):
+                            game_found = True
+                            break
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            
+            if not game_found:
+                del self.running_games[game_name]
+                print(f"{game_name}이(가) 종료되었습니다.")
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
