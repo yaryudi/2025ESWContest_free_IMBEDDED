@@ -1,0 +1,15 @@
+[Variant "Teams"]
+[Site "www.chess.com/4-player-chess"]
+[Date "목  4월 10 2025 12:54:53 (UTC)"]
+[TimeControl "G/1 d15"]
+[PlyCount "26"]
+[CurrentMove "26"]
+[CurrentPosition "B-0,0,0,0-0,1,1,1-0,1,1,1-0,0,0,0-26-3,yR,yN,yB,yK,yQ,yB,yN,yR,3/3,yP,yP,2,yP,yP,yP,yP,3/5,yP,8/bR,bP,10,gP,gR/bN,bP,10,gP,gN/bB,bP,10,gP,gB/bK,bP,10,gP,1/6,yP,2,gP,3,gK/bB,2,bP,8,gP,gB/bN,bP,6,bQ,3,gP,gN/bR,bP,6,rP,3,gP,gR/7,gQ,6/3,rP,rP,rP,rP,2,rP,rP,3/3,rR,rN,rB,2,rK,1,rR,3"]
+
+1. i2-i4 .. b6-d6 .. g13-g11 .. m7-k7 
+2. h2-h3 .. Qa7-c5 .. f13-f12 .. Qn8xQg1 
+3. Kh1-i2 .. Qc5-j5 .. g11-g10 .. Qg1-k5 
+4. Bi1xd6 .. b7-c7 .. g10-g9 .. k7-j7 
+5. Nj1-k3 .. Qj5-j6 .. g9-g8 .. Qk5xNk3 
+6. Ki2-j1 .. c7xBd6 .. g8-g7 .. Qk3xh3 
+7. Kj1-i1 .. Qj6-i5 

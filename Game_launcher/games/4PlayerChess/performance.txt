@@ -1,0 +1,2 @@
+depth 4 search speed:
+w/ new eval function: ~ 1 min 10s for initial search (expect value to grow if in middle of game)

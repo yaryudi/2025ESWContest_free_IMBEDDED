@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <link rel="icon" href="assets/Imperius/Imperius ground.png" type="image/png" />
+    <link rel="apple-touch-icon" href="assets/Imperius/Imperius ground.png" type="image/png" />
+
+    <meta charset="UTF-8" />
+    <meta name="description" content="Welcome to the unofficial Polytopia map generator! Generate maps of whatever sizes and properties." />
+    <meta name="author" content="QuasiStellar" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <meta property="og:url" content="https://quasistellar.github.io/PolytopiaMapGenerator/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Polytopia Map Generator" />
+    <meta property="og:description" content="Welcome to the unofficial Polytopia map generator! Generate maps of whatever sizes and properties." />
+    <meta property="og:image" content=https://quasistellar.github.io/PolytopiaMapGenerator/assets/logo.png" />
+
+    <title>Polytopia Map Generator</title>
+
+    <script type="text/javascript" src="index.js"></script>
+
+    <style>
+        @font-face {
+            font-family: 'Josefin Sans';
+            src: local('Josefin Sans'), url('assets/josefin-sans.ttf') format('truetype');
+            font-weight: 400;
+            font-style: normal;
+        }
+        * {
+            font-family: "Josefin Sans", serif;
+            color: white;
+        }
+        body {
+            background-size: 50%;
+            background: black url('assets/sky.png') repeat fixed;
+            margin: 0;
+        }
+        button {
+            background-color: black;
+        }
+        .txt_field {
+            background-color: black;
+        }
+        @media screen and (min-width: 1200px) {
+            .parent {
+                width: 100vw;
+                height: 100vh;
+                position: fixed;
+                top: 0;
+                left: 0;
+                display: flex;
+                align-items: center;
+                align-content: center;
+                justify-content: center;
+                overflow: auto;
+            }
+        }
+        .block {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        #graphic_display {
+            width: 1280px;
+            height: 960px;
+            background-color: black;
+        }
+        /* 왼쪽 패널, 텍스트, 입력폼, FAQ 등 숨기기 */
+        #main > *:not(.parent) {
+            display: none !important;
+        }
+        #faq {
+            display: none !important;
+        }
+    </style>
+
+</head>
+
+<body onload="onload()">
+
+    <noscript>
+        <h2>Polytopia Map Generator</h2>
+        <i>(by <a href="mailto:quasistellar.official@gmail.com" target="_top">QuasiStellar</a>)</i>
+        <p>Javascript is required to use the generator!</p>
+        <p>If you are worried about potential security issues, you can always review the code at the project's <a href="https://github.com/QuasiStellar/PolytopiaMapGenerator">GitHub repository</a>.</p>
+    </noscript>
+
+    <div id="main">
+
+        <div class="parent">
+            <div class="block">
+                <canvas id="graphic_display" style="position:absolute; width:100%; height:100%;"></canvas>
+            </div>
+        </div>
+
+        <h2>Polytopia Map Generator</h2>
+        <span style="display: inline-block"><i>(by <a href="mailto:quasistellar.official@gmail.com" target="_top">QuasiStellar</a>)</i></span>
+
+        <p id="warning" style="display: none">Warning.</p>
+
+        <p>Initial land:</p>
+        <label for="initial_land"></label><input type="range" id="initial_land" value="0.5" min="0" max="1" step="0.01" required>
+        <p>Smoothing:</p>
+        <label for="smoothing"></label><input type="range" id="smoothing" value="3" min="0" max="4" step="1" required>
+        <p>Relief:</p>
+        <label for="relief"></label><input type="range" id="relief" value="4" min="2" max="6" step="1" required>
+        <p>Tribes:</p>
+        <label for="tribes"></label><input type="text" id="tribes" class="txt_field" value="Kickoo Hoodrick Vengir Zebasi Ai-mo Polaris" required>
+        <p>Text output:</p>
+        <label for="text_output_check"></label><input type="checkbox" id="text_output_check">
+        <p>Don't generate biomes:</p>
+        <label for="no_biomes_check"></label><input type="checkbox" id="no_biomes_check">
+        <p>Don't generate resources:</p>
+        <label for="no_resources_check"></label><input type="checkbox" id="no_resources_check">
+        <p>Fill with (10 times faster):</p>
+        <label for="fill"></label><input type="text" id="fill" class="txt_field" value="">
+
+        <p id="text_display" style="display: none">None</p>
+
+        <p><button type="button" onclick="switch_page('faq')">FAQ</button>
+    </div>
+
+    <div id="faq" style="display: none">
+        <h2>Frequently Asked Questions</h2>
+
+        <p><button type="button" onclick="switch_page('main')">Generator</button>
+    </div>
+
+    <script>
+    window.addEventListener('wheel', function(e) { e.preventDefault(); }, { passive: false });
+    </script>
+</body>
+
+</html>

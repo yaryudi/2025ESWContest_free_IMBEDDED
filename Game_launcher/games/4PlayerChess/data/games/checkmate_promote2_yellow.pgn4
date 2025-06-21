@@ -1,0 +1,28 @@
+[Variant "Teams"]
+[Site "www.chess.com/4-player-chess"]
+[Date "Tue Apr 29 2025 11:34:49 (UTC)"]
+[TimeControl "G/1 d15"]
+[PlyCount "80"]
+[CurrentMove "80"]
+[CurrentPosition "G-0,0,0,0-0,1,0,1-0,1,0,1-0,0,0,0-80-6,yK,7/4,gQ,3,bQ,5/14/bR,bP,10,gP,gR/bN,bB,9,gP,1,gN/1,bP,8,gP,2,gB/bK,bP,10,gP,1/13,gK/bB,2,bP,5,rP,2,gP,gB/bN,bP,10,gP,gN/bR,bP,4,yR,5,gP,gR/14/3,rP,rP,rP,rP,3,rP,3/3,rR,rN,rB,rK,3,rR,3"]
+
+1. i2-i4 .. b6-d6 .. g13-g11 .. m7-k7 
+2. h2-h3 .. Qa7-c5 .. f13-f12 .. Qn8xQg1 
+3. Kh1-i2 .. Qc5-j5 .. g11-g10 .. Qg1-k5 
+4. Bi1xd6 .. b7-c7 .. g10-g9 .. k7-j7 
+5. Nj1-k3 .. Qj5-j6 .. g9-g8 .. Qk5xNk3 
+6. Ki2-j1 .. c7xBd6 .. g8-g7 .. Qk3xh3 
+7. Kj1-i1 .. Qj6-i5 .. g7-g6 .. Qh3-d7 
+8. Ki1-h2 .. Qi5xi13 .. Ne14-d12 .. m10-l10 
+9. Kh2-g1 .. Qi13xBi14 .. e13-e11 .. Qd7xNd12 
+10. i4-i5 .. Qi14xNj14 .. Kg14-f13 .. Qd12xe11 
+11. i5-i6 .. Qj14xQh14 .. f12-f11 .. Qe11xf11 
+12. i6xj7 .. Qh14xh13 .. Kf13-e14 .. Qf11-k11 
+13. j7-j8 .. Qh13xj13 .. Bf14xb10 .. Qk11xk13 
+14. j8-j9 .. Ba9xBb10 .. d13-d11 .. Qk13-i11 
+15. j9-j10 .. Qj13xRk14 .. Ke14-f13 .. Qi11xd11 
+16. j2-j3 .. Qk14-k11 .. Kf13-g13 .. Qd11xRd14 
+17. j3-j4 .. Qk11-j12 .. Kg13-f13 .. m9-l9 
+18. j10-j11 .. Qj12xRj11 .. g6-g5 .. Qd14-d13 
+19. j4-j5 .. Qj11-j12 .. Kf13-g14 .. Qd13-e13 
+20. j5-j6 .. Qj12-i13 .. g5-g4 .. l9-k9 

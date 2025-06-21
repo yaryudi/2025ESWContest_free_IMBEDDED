@@ -1,0 +1,49 @@
+4 Player Chess:
+Rules: 
+2 v 2, once any player on a team is mated --> game ends
+pawn promote on 11th rank
+red, then clockwise
+Some observations:
+Castling is harder --> performing an earlier castle may be important
+ - an early castle break can occur w/ moving a king's pawn when the player clockwise (after you) already moved his 
+   - on the flipside, this also means, you should not move king's pawn if the previous player moved his
+Teammate's pieces count as protection for taking pieces
+Turn based system means you can get free pieces if your teammate checks, and then you position yourself to take a pieces
+  from the checked player. 
+Checkmates only occur when it gets to the player in checkmate (allows partner to move and prevent)
+An interesting opening trap: move king pawn, next player moves queen pawn (maybe necessary idk), teammate moves king pawn
+ - if the other player moves king pawn --> game ends (queen takes queen, teammate bishop to protect)
+
+
+Notes on 4PlayerChess Qt Application:
+Checkmates aren't properly handled (nor are checks)
+ - checks: algorithm.py line 938
+ - checkmates: either make functions in the bitboard (don't do) or come up with a check that uses prev defined functions
+   (maybe inefficient?)
+Pawn Promotion not encoded
+En-passant --> needs code
+FEN4 notation seems to be the 4 player chess movement notation
+There might already be starting code to quickly convert chess.com moves to this and vice versa
+ - some functions in the algorithm class, can we link this with chess.com in some way?
+GameState handled by nodes in a tree representing the states of the game (allows history and variations)
+Game Loop:
+- Create new game:
+  - generate default board state in algorithm (and init bitmap board)
+- Repeat Forever:
+  - wait for actions in gui (this is what we will need to reroute)
+    - when made, go to make move function in algorithm (which handles the move and sets next player)
+
+Things to consider for evaluation:
+Transposition Table: Hash positions w/ evaluations so to prevent reuse. Interesting if using alpha-beta pruning.
+Game-Phase Separation?
+ - Early Game: Does it matter (besides preventing early mates?)
+ - Mid Game: Likely very important
+    - how to handle mobility vs. king safety, likely very important
+ - End Game: How does the ability to potentially have two moves before one opponent get a turn change material needed to win?
+Tempo VS. Material
+
+Things to try:
+NegaMax instead of Minimax, NegaScout instead of NegaMax (iterative deepening + PV nodes in Transposition Tables)
+  https://en.wikipedia.org/wiki/Principal_variation_search
+  https://github.com/duilio/c4
+  
