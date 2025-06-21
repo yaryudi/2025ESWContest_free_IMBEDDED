@@ -470,8 +470,7 @@ class GameLauncher(QMainWindow):
         
         # 이미 실행 중인지 확인
         if game_name in self.running_games:
-            QMessageBox.information(self, "알림", f"{game_name}이(가) 이미 실행 중입니다.")
-            return
+            return  # 메시지 없이 그냥 무시
             
         # 다른 게임이 실행 중인지 확인
         if self.running_games:
