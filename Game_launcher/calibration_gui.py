@@ -299,7 +299,7 @@ class CalibrationGUI(QMainWindow):
         main_layout.addWidget(title_label)
         
         # 상태 메시지
-        self.status_label = QLabel('10초 동안 터치 신호가 없으면 캘리브레이션이 시작됩니다...')
+        self.status_label = QLabel('5초 동안 터치 신호가 없으면 캘리브레이션이 시작됩니다...')
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet("""
             QLabel {
@@ -313,7 +313,7 @@ class CalibrationGUI(QMainWindow):
         main_layout.addWidget(self.status_label)
         
         # 타이머
-        self.timer_label = QLabel('10초')
+        self.timer_label = QLabel('5초')
         self.timer_label.setAlignment(Qt.AlignCenter)
         self.timer_label.setStyleSheet("""
             QLabel {
@@ -383,29 +383,29 @@ class CalibrationGUI(QMainWindow):
         # 타이머 설정
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_timer)
-        self.countdown = 10
+        self.countdown = 5
         
         # 터치 감지 타이머
         self.touch_timer = QTimer()
         self.touch_timer.timeout.connect(self.on_touch_timeout)
         self.touch_timer.setSingleShot(True)
         
-        # 10초 대기 타이머
+        # 5초 대기 타이머
         self.wait_timer = QTimer()
         self.wait_timer.timeout.connect(self.on_wait_timeout)
         self.wait_timer.setSingleShot(True)
         
-        # 초기 10초 대기 시작
+        # 초기 5초 대기 시작
         self.start_wait_period()
         
     def start_wait_period(self):
-        """10초 대기 기간 시작"""
-        self.countdown = 10
+        """5초 대기 기간 시작"""
+        self.countdown = 5
         self.timer.start(1000)  # 1초마다
-        self.wait_timer.start(10000)  # 10초 후 타임아웃
-        self.status_label.setText('10초 동안 터치 신호가 없으면 캘리브레이션이 시작됩니다...')
+        self.wait_timer.start(5000)  # 5초 후 타임아웃
+        self.status_label.setText('5초 동안 터치 신호가 없으면 캘리브레이션이 시작됩니다...')
         
-        # 10초 대기 중에도 터치 감지를 위해 시리얼 연결 및 스레드 시작
+        # 5초 대기 중에도 터치 감지를 위해 시리얼 연결 및 스레드 시작
         try:
             self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
             self.offset = self.calibrate_offset()
@@ -416,7 +416,7 @@ class CalibrationGUI(QMainWindow):
             self.status_label.setText(f'연결 오류: {e}')
         
     def on_wait_timeout(self):
-        """10초 대기 타임아웃 시 호출"""
+        """5초 대기 타임아웃 시 호출"""
         self.timer.stop()
         self.timer_label.setText('캘리브레이션 시작!')
         self.status_label.setText('캘리브레이션을 시작합니다...')
@@ -463,6 +463,7 @@ class CalibrationGUI(QMainWindow):
         
         # 마지막 터치 좌표 초기화
         self.last_touch_coords = None
+        self.touch_detected_in_step = False  # 현재 단계에서 터치 감지 여부
         
         # 모든 포인트 비활성화
         for point in [self.top_left, self.top_right, self.bottom_left, self.bottom_right]:
@@ -498,7 +499,7 @@ class CalibrationGUI(QMainWindow):
         """터치 감지 시 호출"""
         r, c = coords
         
-        # 캘리브레이션이 시작되지 않은 상태에서 터치가 감지되면 10초 대기 리셋
+        # 캘리브레이션이 시작되지 않은 상태에서 터치가 감지되면 5초 대기 리셋
         if self.current_step == 0:
             self.reset_wait_period()
             return
@@ -506,6 +507,7 @@ class CalibrationGUI(QMainWindow):
         # 캘리브레이션 진행 중일 때는 5초 타이머 리셋
         if self.current_step >= 1 and self.current_step <= 4:
             self.last_touch_coords = (r, c)  # 마지막 터치 좌표 저장
+            self.touch_detected_in_step = True  # 터치 감지됨 표시
             self.reset_calibration_timer()
             return
     
@@ -533,52 +535,68 @@ class CalibrationGUI(QMainWindow):
     def on_touch_timeout(self):
         """5초 타임아웃 시 호출"""
         self.timer.stop()
-        self.timer_label.setText('시간 초과')
-        self.status_label.setText('5초 동안 새로운 터치가 없어 다음 단계로 진행합니다.')
         
-        # 마지막 터치 좌표가 있으면 데이터 저장
-        if self.last_touch_coords:
-            r, c = self.last_touch_coords
+        if self.touch_detected_in_step:
+            # 터치가 감지된 경우 - 성공 메시지
+            self.timer_label.setText('터치 성공!')
+            self.status_label.setText('터치가 성공적으로 감지되었습니다. 다음 단계로 진행합니다.')
             
-            # 현재 단계에 따른 화면 좌표
-            if self.current_step == 1:
-                screen_coords = (0, 0)
-            elif self.current_step == 2:
-                screen_coords = (self.SCREEN_W-1, 0)
-            elif self.current_step == 3:
-                screen_coords = (0, self.SCREEN_H-1)
-            elif self.current_step == 4:
-                screen_coords = (self.SCREEN_W-1, self.SCREEN_H-1)
-            else:
-                return
+            # 마지막 터치 좌표가 있으면 데이터 저장
+            if self.last_touch_coords:
+                r, c = self.last_touch_coords
+                
+                # 현재 단계에 따른 화면 좌표
+                if self.current_step == 1:
+                    screen_coords = (0, 0)
+                elif self.current_step == 2:
+                    screen_coords = (self.SCREEN_W-1, 0)
+                elif self.current_step == 3:
+                    screen_coords = (0, self.SCREEN_H-1)
+                elif self.current_step == 4:
+                    screen_coords = (self.SCREEN_W-1, self.SCREEN_H-1)
+                else:
+                    return
+                
+                # 데이터 저장
+                self.calibration_data['touch_points'].append((r, c))
+                self.calibration_data['screen_points'].append(screen_coords)
+                
+                # 현재 포인트 완료 표시
+                if self.current_step == 1:
+                    self.top_left.is_completed = True
+                    self.top_left.is_active = False
+                    self.top_left.update()
+                elif self.current_step == 2:
+                    self.top_right.is_completed = True
+                    self.top_right.is_active = False
+                    self.top_right.update()
+                elif self.current_step == 3:
+                    self.bottom_left.is_completed = True
+                    self.bottom_left.is_active = False
+                    self.bottom_left.update()
+                elif self.current_step == 4:
+                    self.bottom_right.is_completed = True
+                    self.bottom_right.is_active = False
+                    self.bottom_right.update()
+                
+                # 마지막 터치 좌표 초기화
+                self.last_touch_coords = None
             
-            # 데이터 저장
-            self.calibration_data['touch_points'].append((r, c))
-            self.calibration_data['screen_points'].append(screen_coords)
+            # 다음 단계로
+            QTimer.singleShot(2000, self.start_next_step)
             
-            # 현재 포인트 완료 표시
-            if self.current_step == 1:
-                self.top_left.is_completed = True
-                self.top_left.is_active = False
-                self.top_left.update()
-            elif self.current_step == 2:
-                self.top_right.is_completed = True
-                self.top_right.is_active = False
-                self.top_right.update()
-            elif self.current_step == 3:
-                self.bottom_left.is_completed = True
-                self.bottom_left.is_active = False
-                self.bottom_left.update()
-            elif self.current_step == 4:
-                self.bottom_right.is_completed = True
-                self.bottom_right.is_active = False
-                self.bottom_right.update()
+        else:
+            # 터치가 감지되지 않은 경우 - 실패 메시지
+            self.timer_label.setText('시간 초과!')
+            self.status_label.setText('터치가 감지되지 않았습니다. 다시 시도해주세요.')
             
-            # 마지막 터치 좌표 초기화
-            self.last_touch_coords = None
-        
-        # 다음 단계로
-        QTimer.singleShot(2000, self.start_next_step)
+            # 현재 단계를 다시 시작
+            QTimer.singleShot(2000, self.retry_current_step)
+    
+    def retry_current_step(self):
+        """현재 단계를 다시 시도"""
+        self.current_step -= 1  # 단계를 되돌려서 다시 시작
+        self.start_next_step()
     
     def update_timer(self):
         """타이머 업데이트"""
@@ -652,14 +670,14 @@ class CalibrationGUI(QMainWindow):
         event.accept()
     
     def reset_wait_period(self):
-        """10초 대기 기간 리셋"""
+        """5초 대기 기간 리셋"""
         self.timer.stop()
         self.wait_timer.stop()
-        self.countdown = 10
+        self.countdown = 5
         self.timer.start(1000)
-        self.wait_timer.start(10000)
-        self.status_label.setText('터치가 감지되어 10초 대기가 리셋되었습니다...')
-        self.timer_label.setText('10초')
+        self.wait_timer.start(5000)
+        self.status_label.setText('터치가 감지되어 5초 대기가 리셋되었습니다...')
+        self.timer_label.setText('5초')
 
 def main():
     app = QApplication(sys.argv)
