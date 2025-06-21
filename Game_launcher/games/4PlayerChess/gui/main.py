@@ -704,47 +704,66 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 """)
 
     def show_game_over(self, result):
-        """Show game over popup with the result."""
+        """Show game over popup with the result and countdown in a single dialog."""
         if result == self.algorithm.Team1Wins:
-            message = "Team 1 (Red & Yellow) wins by checkmate!"
+            result_message = "Team 1 (Red & Yellow) wins by checkmate!"
         elif result == self.algorithm.Team2Wins:
-            message = "Team 2 (Blue & Green) wins by checkmate!"
+            result_message = "Team 2 (Blue & Green) wins by checkmate!"
         elif result == self.algorithm.Team1Wins_Timeout:
-            message = "Team 1 (Red & Yellow) wins by Timeout!"
+            result_message = "Team 1 (Red & Yellow) wins by Timeout!"
         elif result == self.algorithm.Team2Wins_Timeout:
-            message = "Team 2 (Blue & Green) wins by Timeout!"
+            result_message = "Team 2 (Blue & Green) wins by Timeout!"
         else:
-            message = "Draw by Stalemate!"
+            result_message = "Draw by Stalemate!"
             
-        QMessageBox.information(self, "Game Over", message)
-        # self.game_timer.stop()  # Stop the timer when game is over
-        
         # 디버깅을 위한 로그 출력
         print(f"Game Over: {result}")
         
-        # 카운트다운 팝업창 생성
+        # 게임 결과와 카운트다운을 함께 표시하는 팝업창 생성
         self.countdown_dialog = QMessageBox(self)
         self.countdown_dialog.setWindowTitle("게임 종료")
         self.countdown_dialog.setIcon(QMessageBox.Information)
         self.countdown_dialog.setStandardButtons(QMessageBox.NoButton)  # 버튼 없음
         
-        # 카운트다운 타이머 설정
-        self.countdown_seconds = 3
+        # 창 크기 설정 (더 크게)
+        self.countdown_dialog.resize(600, 400)
+        
+        # 글씨 크기 설정을 위한 스타일시트 적용
+        self.countdown_dialog.setStyleSheet("""
+            QMessageBox {
+                font-size: 18px;
+                font-weight: bold;
+            }
+            QMessageBox QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                color: #333333;
+                padding: 20px;
+                line-height: 1.5;
+            }
+        """)
+        
+        # 카운트다운 타이머 설정 (더 오래 표시)
+        self.countdown_seconds = 8  # 3초에서 8초로 증가
         self.countdown_timer = QTimer(self)
         self.countdown_timer.timeout.connect(self.update_countdown)
         self.countdown_timer.start(1000)  # 1초마다 업데이트
         
-        # 초기 카운트다운 표시
+        # 게임 결과 메시지를 인스턴스 변수로 저장
+        self.result_message = result_message
+        
+        # 초기 메시지 설정 (게임 결과 + 카운트다운)
         self.update_countdown()
         
-        # 3초 후 게임 종료
-        print("게임이 3초 후에 자동으로 종료됩니다...")
-        self.game_exit_timer.start(3000)  # 3초 = 3000ms
+        # 8초 후 게임 종료 (3초에서 8초로 증가)
+        print("게임이 8초 후에 자동으로 종료됩니다...")
+        self.game_exit_timer.start(8000)  # 8초 = 8000ms
 
     def update_countdown(self):
         """카운트다운을 업데이트합니다."""
         if self.countdown_seconds > 0:
-            self.countdown_dialog.setText(f"{self.countdown_seconds}초 후 게임을 종료합니다...")
+            full_message = f"{self.result_message}\n\n{self.countdown_seconds}초 후 게임을 종료합니다..."
+            self.countdown_dialog.setText(full_message)
             self.countdown_dialog.show()
             self.countdown_seconds -= 1
         else:
