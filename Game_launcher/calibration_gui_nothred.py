@@ -92,7 +92,7 @@ class CalibrationGUI(QMainWindow):
         
         # 더블클릭 방지 관련 변수
         self.last_mouse_time = 0
-        self.double_click_prevention_time = 0.3  # 300ms 더블클릭 방지
+        self.double_click_prevention_time = 1  # 300ms 더블클릭 방지
         
         # 사분면 정의 (clikmap_raspi.py 참고)
         center_r, center_c = self.NUM_ROWS//2, self.NUM_COLS//2
