@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 import time
 import cv2
@@ -27,9 +28,3 @@ if __name__ == "__main__":
     ts = int(time.time())
     fname = f"capture_{ts}.png"
     capture_and_save(fname)
-
-capture_and_save() 에 파일명을 넘기면 그 이름으로 현재 디렉토리에 PNG가 저장됩니다.
-
-time.sleep(0.5) 는 카메라 버퍼 안정화를 위해 넣은 것이고, 필요 없으면 제거해도 됩니다.
-
-
