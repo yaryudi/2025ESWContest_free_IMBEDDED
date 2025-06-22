@@ -102,15 +102,3 @@ python launcher.py
 ## 📄 라이선스
 
 이 프로젝트는 [GPL License](LICENSE) 하에 배포됩니다.
-
-## 🤝 기여하기
-
-1. Fork the repo
-2. 새로운 브랜치 생성: `git checkout -b feature/YourFeature`
-3. 변경사항 커밋: `git commit -m "Add your feature"`
-4. 브랜치 푸시: `git push origin feature/YourFeature`
-5. Pull Request 생성
-
-## 📞 문의
-
-* GitHub Issues: [https://github.com/yourrepo/issues](https://github.com/yourrepo/issues)
