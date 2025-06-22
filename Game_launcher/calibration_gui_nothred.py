@@ -88,7 +88,11 @@ class CalibrationGUI(QMainWindow):
         self.FRAME_SIZE = self.NUM_ROWS * self.NUM_COLS
         self.TOUCH_THRESHOLD_CALIBRATION = 30
         self.TOUCH_THRESHOLD_MOUSE = 20
-        self.cool_down_time = 3.0  # 3초 쿨다운
+        self.cool_down_time = 3.0  # 3초 쿨다운 (캘리브레이션용)
+        
+        # 더블클릭 방지 관련 변수
+        self.last_mouse_time = 0
+        self.double_click_prevention_time = 0.3  # 300ms 더블클릭 방지
         
         # 사분면 정의 (clikmap_raspi.py 참고)
         center_r, center_c = self.NUM_ROWS//2, self.NUM_COLS//2
@@ -334,6 +338,12 @@ class CalibrationGUI(QMainWindow):
     
     def process_mouse_control(self, filtered):
         """마우스 제어 모드에서 터치 처리"""
+        current_time = time.time()
+        
+        # 더블클릭 방지: 마지막 마우스 동작으로부터 일정 시간이 지나지 않았으면 무시
+        if current_time - self.last_mouse_time < self.double_click_prevention_time:
+            return
+        
         # 사분면별로 터치 감지
         for quadrant_name, (rs, cs) in self.quadrants.items():
             peak = self.find_peak(filtered, rs, cs, self.TOUCH_THRESHOLD_MOUSE)
@@ -343,7 +353,13 @@ class CalibrationGUI(QMainWindow):
                 screen_coords = self.map_touch_to_screen(r, c)
                 if screen_coords:
                     x_px, y_px = screen_coords
+                    
+                    # 마지막 마우스 동작 시간 업데이트
+                    self.last_mouse_time = current_time
+                    
+                    # 마우스 이동
                     pyautogui.moveTo(x_px, y_px)
+                    pyautogui.click()
                     print(f"마우스 이동: {quadrant_name} - ({r}, {c}) -> ({x_px}, {y_px})")
                     break  # 하나의 터치만 처리
     
