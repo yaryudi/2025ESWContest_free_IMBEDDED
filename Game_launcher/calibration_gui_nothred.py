@@ -99,7 +99,10 @@ class CalibrationThread(QThread):
         self.FRAME_SIZE = self.NUM_ROWS * self.NUM_COLS
         self.TOUCH_THRESHOLD = 30
         self.last_touch_time = 0
+        self.last_touch_coords = None  # 이전 터치 좌표 (row, col)
         self.cool_down_time = 3.0  # 3초 쿨다운
+        self.double_click_threshold = 1.0  # 1초 내 같은 위치 터치 방지
+        self.position_threshold = 3  # 3칸 이내를 같은 위치로 간주 (터치패드 좌표 기준)
         
         # 사분면 정의 (clikmap_raspi.py 참고)
         center_r, center_c = self.NUM_ROWS//2, self.NUM_COLS//2
@@ -134,11 +137,18 @@ class CalibrationThread(QThread):
                             r, c, v = peak
                             if v >= self.TOUCH_THRESHOLD:
                                 current_time = time.time()
+                                
+                                # 더블클릭 방지 검사
+                                if self.is_double_click_calibration(r, c, current_time):
+                                    print(f"더블클릭 방지: ({r}, {c}) - 이전 터치와 너무 가까움")
+                                    continue
+                                
                                 # 3초 쿨다운 체크
                                 if current_time - self.last_touch_time >= self.cool_down_time:
                                     print(f"터치 감지: {quadrant_name} - ({r}, {c}) - 값: {v}")
                                     self.touch_detected.emit((r, c))
                                     self.last_touch_time = current_time
+                                    self.last_touch_coords = (r, c)
                                     touch_found = True
                             
             except serial.SerialException as e:
@@ -205,6 +215,29 @@ class CalibrationThread(QThread):
             print(f"피크 검출 오류: {e}")
             return None
     
+    def is_double_click_calibration(self, r, c, current_time):
+        """캘리브레이션 중 더블클릭 여부를 판단하는 메서드"""
+        # 이전 터치가 없으면 더블클릭이 아님
+        if self.last_touch_coords is None:
+            return False
+        
+        # 시간 차이 계산
+        time_diff = current_time - self.last_touch_time
+        
+        # 시간 임계값을 초과하면 더블클릭이 아님
+        if time_diff > self.double_click_threshold:
+            return False
+        
+        # 위치 차이 계산 (터치패드 좌표 기준)
+        last_r, last_c = self.last_touch_coords
+        distance = ((r - last_r) ** 2 + (c - last_c) ** 2) ** 0.5
+        
+        # 위치가 너무 가까우면 더블클릭으로 판단
+        if distance <= self.position_threshold:
+            return True
+        
+        return False
+    
     def stop(self):
         self.running = False
 
@@ -224,6 +257,12 @@ class MouseControlThread(QThread):
         self.TOUCH_THRESHOLD = 20
         self.SCREEN_W = 1280
         self.SCREEN_H = 800
+        
+        # 더블클릭 방지를 위한 변수들
+        self.last_touch_time = 0
+        self.last_touch_coords = None
+        self.double_click_threshold = 0.5  # 0.5초 내 같은 위치 터치 방지
+        self.position_threshold = 5  # 5픽셀 이내를 같은 위치로 간주
         
         # 사분면 정의 (clikmap_raspi.py 참고)
         center_r, center_c = self.NUM_ROWS//2, self.NUM_COLS//2
@@ -261,9 +300,20 @@ class MouseControlThread(QThread):
                                 screen_coords = self.map_touch_to_screen(r, c)
                                 if screen_coords:
                                     x_px, y_px = screen_coords
+                                    
+                                    # 더블클릭 방지 검사
+                                    if self.is_double_click(x_px, y_px):
+                                        print(f"더블클릭 방지: ({x_px}, {y_px}) - 이전 터치와 너무 가까움")
+                                        continue
+                                    
                                     try:
                                         pyautogui.moveTo(x_px, y_px)
                                         print(f"마우스 이동: {quadrant_name} - ({r}, {c}) -> ({x_px}, {y_px})")
+                                        
+                                        # 터치 정보 업데이트
+                                        self.last_touch_time = time.time()
+                                        self.last_touch_coords = (x_px, y_px)
+                                        
                                     except Exception as e:
                                         print(f"마우스 이동 오류: {e}")
                                     touch_found = True
@@ -355,6 +405,31 @@ class MouseControlThread(QThread):
         except Exception as e:
             print(f"좌표 변환 오류: {e}")
             return None
+    
+    def is_double_click(self, x, y):
+        """더블클릭 여부를 판단하는 메서드"""
+        current_time = time.time()
+        
+        # 이전 터치가 없으면 더블클릭이 아님
+        if self.last_touch_coords is None:
+            return False
+        
+        # 시간 차이 계산
+        time_diff = current_time - self.last_touch_time
+        
+        # 시간 임계값을 초과하면 더블클릭이 아님
+        if time_diff > self.double_click_threshold:
+            return False
+        
+        # 위치 차이 계산
+        last_x, last_y = self.last_touch_coords
+        distance = ((x - last_x) ** 2 + (y - last_y) ** 2) ** 0.5
+        
+        # 위치가 너무 가까우면 더블클릭으로 판단
+        if distance <= self.position_threshold:
+            return True
+        
+        return False
     
     def stop(self):
         self.running = False
