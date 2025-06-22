@@ -25,12 +25,27 @@ from PyQt5.QtGui import QPainter, QPalette, QColor, QFont, QDrag, QIcon, QCursor
     QBrush, QResizeEvent
 from collections import deque
 from gui.board import Board
-from distutils.util import strtobool
 
 # Load settings
 COM = '4pc'
 APP = '4PlayerChess'
 SETTINGS = QSettings(COM, APP)
+
+
+def strtobool(val):
+    """Convert a string representation of truth to true (1) or false (0).
+    
+    True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
+    are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
+    'val' is anything else.
+    """
+    val = str(val).lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return 1
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return 0
+    else:
+        raise ValueError("invalid truth value %r" % (val,))
 
 
 class View(QWidget):

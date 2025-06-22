@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from PyQt5.QtWidgets import QMainWindow, QSizePolicy, QLayout, QListWidget, QListWidgetItem, QListView, QFrame, \
+from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QLayout, QListWidget, QListWidgetItem, QListView, QFrame, \
     QFileDialog, QMenu, QAction, QDialog, QDialogButtonBox, QScrollArea, QWidget, QVBoxLayout, QLabel, QMessageBox
 from PyQt5.QtCore import Qt, QSize, QPoint, QRect, QSettings, QUrl, QTimer
 from PyQt5.QtGui import QIcon, QColor, QFont, QFontMetrics, QPainter, QDesktopServices
@@ -33,7 +33,6 @@ from urllib import request
 import certifi
 from re import compile
 from pkg_resources import parse_version
-from distutils.util import strtobool
 
 # Load settings
 COM = '4pc'
@@ -46,6 +45,22 @@ MINOR = str(10)
 PATCH = str(0)
 PRE_RELEASE = False * ('-' + 'alpha' + str(1))  # alpha, beta or rc (= release candidate)
 VERSION = MAJOR + '.' + MINOR + '.' + PATCH + PRE_RELEASE
+
+
+def strtobool(val):
+    """Convert a string representation of truth to true (1) or false (0).
+    
+    True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
+    are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
+    'val' is anything else.
+    """
+    val = str(val).lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return 1
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return 0
+    else:
+        raise ValueError("invalid truth value %r" % (val,))
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -160,7 +175,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 게임 종료 타이머 추가
         self.game_exit_timer = QTimer(self)
         self.game_exit_timer.setSingleShot(True)
-        self.game_exit_timer.timeout.connect(self.close)
+        self.game_exit_timer.timeout.connect(self.force_close)
 
         # Game loop timer (타이머 기능 제거로 주석 처리)
         # self.game_loop_timer = QTimer(self)
@@ -175,6 +190,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Print keyboard shortcuts info
         print("\n=== 체스 게임 키보드 단축키 ===")
+        print("ESC: 프로그램 종료")
+        print("Ctrl+Q: 프로그램 종료")
         print("S: 체스 말 놓는 소리 켜기/끄기")
         print("B: 중세 BGM 켜기/끄기")
         print("M: BGM 일시정지/재개")
@@ -509,6 +526,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def keyPressEvent(self, event):
         """Handles arrow key press events to go to previous, next, first or last move. Also stores key modifier for View
         to draw different color arrows and squares."""
+        # 종료 키 처리
+        if event.key() == Qt.Key_Escape:
+            print("ESC 키를 눌렀습니다. 프로그램을 종료합니다.")
+            self.close()
+            return
+        elif event.key() == Qt.Key_Q and event.modifiers() == Qt.ControlModifier:
+            print("Ctrl+Q를 눌렀습니다. 프로그램을 종료합니다.")
+            self.close()
+            return
+        
+        # 기존 키보드 이벤트 처리
         if event.key() == Qt.Key_Left:
             self.algorithm.prevMove()
         if event.key() == Qt.Key_Right:
@@ -724,6 +752,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.countdown_dialog.setWindowTitle("게임 종료")
         self.countdown_dialog.setIcon(QMessageBox.Information)
         self.countdown_dialog.setStandardButtons(QMessageBox.NoButton)  # 버튼 없음
+        self.countdown_dialog.setModal(True)  # 모달 다이얼로그로 설정
+        self.countdown_dialog.setWindowFlags(
+            self.countdown_dialog.windowFlags() & ~Qt.WindowCloseButtonHint  # 닫기 버튼 제거
+        )
         
         # 창 크기 설정 (더 크게)
         self.countdown_dialog.resize(600, 400)
@@ -744,7 +776,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """)
         
         # 카운트다운 타이머 설정 (더 오래 표시)
-        self.countdown_seconds = 8  # 3초에서 8초로 증가
+        self.countdown_seconds = 10  # 10초
         self.countdown_timer = QTimer(self)
         self.countdown_timer.timeout.connect(self.update_countdown)
         self.countdown_timer.start(1000)  # 1초마다 업데이트
@@ -755,9 +787,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 초기 메시지 설정 (게임 결과 + 카운트다운)
         self.update_countdown()
         
-        # 8초 후 게임 종료 (3초에서 8초로 증가)
-        print("게임이 8초 후에 자동으로 종료됩니다...")
-        self.game_exit_timer.start(8000)  # 8초 = 8000ms
+        # 10초 후 게임 종료
+        print("게임이 10초 후에 자동으로 종료됩니다...")
+        self.game_exit_timer.start(10000)  # 10초 = 10000ms
+        
+        # 다이얼로그 표시
+        self.countdown_dialog.show()
 
     def update_countdown(self):
         """카운트다운을 업데이트합니다."""
@@ -779,6 +814,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def handle_promotion_selection(self, piece_code):
         """폰 승진 선택을 처리합니다."""
         self.algorithm.promoteValue(piece_code)
+
+    def closeEvent(self, event):
+        """창이 닫힐 때 호출되는 이벤트"""
+        print("체스 게임을 종료합니다...")
+        # 모든 타이머 정지
+        if hasattr(self, 'game_exit_timer'):
+            self.game_exit_timer.stop()
+        if hasattr(self, 'countdown_timer'):
+            self.countdown_timer.stop()
+        # 사운드 정지
+        if hasattr(self, 'sound_manager'):
+            self.sound_manager.stop_bgm()
+        event.accept()
+
+    def force_close(self):
+        """강제로 프로그램을 종료합니다."""
+        print("게임 종료 타이머가 만료되어 프로그램을 강제 종료합니다.")
+        self.close()
+        # QApplication 인스턴스가 있다면 종료
+        app = QApplication.instance()
+        if app:
+            app.quit()
 
 
 class Preferences(QDialog, Ui_Preferences):
