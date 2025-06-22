@@ -1,7 +1,7 @@
 # 🎮 Imbedded - 테이블탑 프로젝터
 **디지털과 아날로그가 만나는 새로운 게임 플랫폼**
 
-[![License](https://img.shields.io/badge/license-GPL-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org)
 [![Raspberry Pi](https://img.shields.io/badge/platform-Raspberry%20Pi-red.svg)](https://raspberrypi.org)
 
@@ -23,7 +23,7 @@
    - 전통 체스의 4인 변형 버전
    - 실시간 게임 진행 상황 표시
 
-2. **🃏 카드 게임 (포켓몬 카드)**
+2. **♠️ 카드 게임 (포커)**
    - YOLO 기반 실시간 카드 인식
    - 16,000장 카드 데이터베이스 지원
    - OpenCV 이미지 처리 파이프라인
@@ -34,7 +34,7 @@
    - 실시간 상황 처리
 
 ### 🔧 하드웨어 구성
-- **제어부**: Raspberry Pi 4B
+- **제어부**: Raspberry Pi 5
 - **카메라**: IMX-708 광각 카메라
 - **터치 시스템**: Velostat 기반 압력 센서
 - **출력**: 프로젝터 기반 디스플레이
@@ -52,24 +52,25 @@
 
 ```
 25Embedded/
-├── poker_versions/          # 포커 관련 게임들
-│   ├── Poker_game_final_ver/    # 최종 포커 게임 버전
-│   ├── Poker_game/              # 기본 포커 게임
-│   ├── Poker_game_image_ver/    # 이미지 인식 버전
-│   └── Poker_game_test_ver/     # 테스트 버전
-├── chess/                   # 체스 게임
-├── chess_team/             # 팀 체스 모드
-├── trpg/                   # TRPG 게임
-├── touch/                  # 터치 시스템
-├── game_launcher/          # 게임 런처
-├── Detect_test/            # 객체 인식 테스트
-└── PokemonTCG_UI_Test_ver/ # 포켓몬 카드 UI 테스트
+├── Game_launcher/
+│   ├── data/
+│   ├── games/
+│   │   ├── 4PlayerChess/        # 4인 체스 게임
+│   │   ├── CivilizedKingdom/    # TRPG 게임 ‘Civilized Kingdom’
+│   │   ├── PokemonTCG/          # 포켓몬 카드 게임
+│   │   └── Poker/               # 포커 게임
+│   ├── cali_launcher.py        # 캘리브레이션 & 런처 실행기
+│   ├── calibration_gui.py      # 터치 캘리브레이션 GUI
+│   └── launcher.py             # 게임 런처 GUI
+├── touch_module/               # 터치 시스템 모듈
+├── LICENSE                     # 라이선스 파일
+└── README.md                   # 전체 프로젝트 설명
 ```
 
 ## 🛠️ 설치 및 실행
 
 ### 필수 요구사항
-- Raspberry Pi 4B (4GB RAM 권장)
+- Raspberry Pi 5 (4GB RAM 권장)
 - Python 3.8 이상
 - OpenCV 4.5+
 - 카메라 모듈 (IMX-708 권장)
@@ -111,13 +112,13 @@ python trpg_main.py
 ## 🔄 개발 진행 상황
 
 ### ✅ 완료된 기능
-- [x] 기본 하드웨어 설계 및 제작
-- [x] 터치 시스템 구현
-- [x] 카메라 기반 객체 인식
-- [x] 체스 게임 완성
-- [x] 포커 게임 완성 (카드 인식 포함)
-- [x] TRPG 기본 시스템
-- [x] 게임 런처 시스템
+- [o] 기본 하드웨어 설계 및 제작
+- [o] 터치 시스템 구현
+- [o] 카메라 기반 객체 인식
+- [o] 체스 게임 완성
+- [o] 포커 게임 완성 (카드 인식 포함)
+- [o] TRPG 기본 시스템
+- [o] 게임 런처 시스템
 
 ### 🚧 개발 중인 기능
 - [ ] 터치 정확도 개선 (목표: 5mm)
@@ -168,7 +169,7 @@ def process_card_detection(frame):
 ### 주요 성과
 - 🏆 **하드웨어 완성도**: 85%
 - 💻 **소프트웨어 완성도**: 90%
-- 🎮 **게임 구현**: 3개 장르 완성
+- 🎮 **게임 구현**: 2개 장르 완성
 - 🤖 **AI 정확도**: 95% 이상
 
 ### 예산 관리
@@ -202,21 +203,7 @@ def process_card_detection(frame):
 
 ## 📄 라이선스
 
-이 프로젝트는 [GPL License](LICENSE) 하에 배포됩니다.
-
-## 🤝 기여하기
-
-프로젝트에 기여하고 싶으시다면:
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📞 연락처
-
-프로젝트 관련 문의: [GitHub Issues](https://github.com/hyobon99/25Embedded/issues)
+이 프로젝트는 MIT License 하에 배포됩니다.
 
 ---
 
