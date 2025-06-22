@@ -1,5 +1,0 @@
-<ui version="4.0">
- <widget class="QMainWindow" name="MainWindow">
-  <layout class="QVBoxLayout"/>
- </widget>
-</ui>

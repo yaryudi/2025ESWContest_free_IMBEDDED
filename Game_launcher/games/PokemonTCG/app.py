@@ -15,7 +15,7 @@ from random_number_dialog import RandomNumberDialog
 from stadium_management_dialog import StadiumManagementDialog
 
 BG_IMAGE_PATH = os.path.join(os.path.dirname(__file__), 'board_bg.png')
-STADIUM_IMAGE_DIR = os.path.join(os.path.dirname(__file__), '스타디움_이미지')
+STADIUM_IMAGE_DIR = os.path.join(os.path.dirname(__file__), 'stadium_image')
 FONT_PATH = os.path.join(os.path.dirname(__file__), 'font', 'PFstardust_font', 'PF스타더스트 3.0 Bold.ttf')
 GB_FONT_PATH = os.path.join(os.path.dirname(__file__), 'font', 'Pokemon_GB_font', 'PokemonGb-RAeo.ttf')
 COIN_IMAGES_DIR = os.path.join(os.path.dirname(__file__), 'coin_images')
@@ -669,7 +669,7 @@ class PokemonBoard(QWidget):
         # 메시지 창 업데이트
         if is_game_started:
             turn_text = "◀ Player 1's Turn!" if self.current_turn == 1 else "Player 2's Turn! ▶"
-            self.message_window.setText(f"{turn_text}")
+            self.message_window.setText(f"{turn_text}\n\nPrize Cards\n 6 - 6")
         else:
             self.message_window.setText("코인토스로 선공을 정하세요!\n\n한 플레이어가 먼저 선택하면\n다른 플레이어의 면은\n자동으로 선택됩니다.")
 
@@ -916,7 +916,7 @@ class PokemonBoard(QWidget):
     
     def handle_energy_selection(self, player_number, slot_type, energy_dict):
         msg = f"플레이어 {player_number}<br>{self.get_slot_kor(slot_type)} 슬롯이<br>"
-        energy_dir = os.path.join(os.path.dirname(__file__), '에너지_이미지')
+        energy_dir = os.path.join(os.path.dirname(__file__), 'energy_image')
         energy_msgs = []
         for energy_type, count in energy_dict.items():
             if count > 0:
@@ -1565,7 +1565,7 @@ class PokemonBoard(QWidget):
             # 메시지 창 업데이트
             if self.coin_toss_state == "finished":
                 turn_text = "◀ Player 1's Turn!" if self.current_turn == 1 else "Player 2's Turn! ▶"
-                self.message_window.setText(f"{turn_text}")
+                self.message_window.setText(f"{turn_text}\n\nPrize Cards\n 6 - 6")
             else:
                 self.message_window.setText("코인토스로 선공을 정하세요!\n\n한 플레이어가 먼저 선택하면\n다른 플레이어의 면은\n자동으로 선택됩니다.")
         except Exception as e:
@@ -1790,7 +1790,7 @@ class PokemonBoard(QWidget):
             
             # 메시지 창 업데이트
             turn_text = "◀ Player 1's Turn!" if self.current_turn == 1 else "Player 2's Turn! ▶"
-            self.message_window.setText(f"{turn_text}")
+            self.message_window.setText(f"{turn_text}\n\nPrize Cards\n 6 - 6")
         except Exception as e:
             print(f"버튼 제거 중 오류 발생: {e}")
             # 오류 발생 시에도 일반 버튼들은 표시
