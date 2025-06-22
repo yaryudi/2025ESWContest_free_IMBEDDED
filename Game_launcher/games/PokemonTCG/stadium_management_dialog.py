@@ -7,7 +7,6 @@ class StadiumManagementDialog(QDialog):
     stadium_completed = pyqtSignal(int)  # player_number
     def __init__(self, parent=None, current_player=1):
         super().__init__(parent)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self.setWindowTitle("스타디움 관리")
         self.setModal(True)
         self.current_player = current_player
@@ -118,9 +117,9 @@ class StadiumManagementDialog(QDialog):
         if self.parent():
             parent_rect = self.parent().geometry()
             if self.current_player == 1:
-                self.move(parent_rect.x() + 10, parent_rect.y() + 300)
+                self.move(parent_rect.x() + 10, parent_rect.y() + 280)
             else:
-                self.move(parent_rect.x() + parent_rect.width() - 260, parent_rect.y() + 120)
+                self.move(parent_rect.x() + parent_rect.width() - 260, parent_rect.y() + 100)
 
     def complete_stadium(self):
         self.stadium_completed.emit(self.current_player)

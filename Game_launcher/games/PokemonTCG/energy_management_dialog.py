@@ -43,7 +43,6 @@ class EnergyManagementDialog(QDialog):
     
     def __init__(self, parent=None, current_player=1, slot_energy_state=None):
         super().__init__(parent)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self.setWindowTitle("에너지 관리")
         self.setModal(True)
         self.current_player = current_player
@@ -56,7 +55,7 @@ class EnergyManagementDialog(QDialog):
         self.init_ui()
 
     def load_energy_images(self):
-        energy_dir = os.path.join(os.path.dirname(__file__), '에너지_이미지')
+        energy_dir = os.path.join(os.path.dirname(__file__), 'energy_image')
         for file in os.listdir(energy_dir):
             if file.endswith('.jpg'):
                 energy_type = file.replace('_energy.jpg', '')
@@ -97,9 +96,9 @@ class EnergyManagementDialog(QDialog):
         if self.parent():
             parent_rect = self.parent().geometry()
             if self.current_player == 1:
-                self.move(parent_rect.x() + 10, parent_rect.y() + 300)
+                self.move(parent_rect.x() + 10, parent_rect.y() + 280)
             else:
-                self.move(parent_rect.x() + parent_rect.width() - 260, parent_rect.y() + 120)
+                self.move(parent_rect.x() + parent_rect.width() - 260, parent_rect.y() + 100)
 
     def create_slot_select_widget(self):
         widget = QWidget()
