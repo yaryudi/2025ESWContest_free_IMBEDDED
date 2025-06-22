@@ -81,15 +81,6 @@ class CalibrationThread(QThread):
         self.last_touch_time = 0
         self.cool_down_time = 3.0  # 3초 쿨다운
         
-        # 사분면 정의 (clikmap_raspi.py 참고)
-        center_r, center_c = self.NUM_ROWS//2, self.NUM_COLS//2
-        self.quadrants = {
-            'top-left': (slice(0, center_r), slice(0, center_c)),
-            'top-right': (slice(0, center_r), slice(center_c, self.NUM_COLS)),
-            'bottom-left': (slice(center_r, self.NUM_ROWS), slice(0, center_c)),
-            'bottom-right': (slice(center_r, self.NUM_ROWS), slice(center_c, self.NUM_COLS)),
-        }
-        
     def run(self):
         while self.running:
             try:
@@ -99,19 +90,16 @@ class CalibrationThread(QThread):
                     corr = np.clip(corr, 0, 255).astype(np.uint8)
                     filtered = self.keep_row_col_max_intersection(corr)
                     
-                    # 사분면별로 터치 감지 (clikmap_raspi.py 방식)
-                    for quadrant_name, (rs, cs) in self.quadrants.items():
-                        peak = self.find_peak(filtered, rs, cs)
-                        if peak:
-                            r, c, v = peak
-                            if v >= self.TOUCH_THRESHOLD:
-                                current_time = time.time()
-                                # 3초 쿨다운 체크
-                                if current_time - self.last_touch_time >= self.cool_down_time:
-                                    print(f"터치 감지: {quadrant_name} - ({r}, {c}) - 값: {v}")
-                                    self.touch_detected.emit((r, c))
-                                    self.last_touch_time = current_time
-                                    break  # 하나의 터치만 처리
+                    # 터치 감지
+                    peak = self.find_peak(filtered)
+                    if peak:
+                        r, c, v = peak
+                        if v >= self.TOUCH_THRESHOLD:
+                            current_time = time.time()
+                            # 3초 쿨다운 체크
+                            if current_time - self.last_touch_time >= self.cool_down_time:
+                                self.touch_detected.emit((r, c))
+                                self.last_touch_time = current_time
                             
             except Exception as e:
                 print(f"터치 감지 오류: {e}")
@@ -149,18 +137,14 @@ class CalibrationThread(QThread):
         mask = (arr == row_max) & (arr == col_max)
         return arr * mask
     
-    def find_peak(self, arr, rs, cs):
-        """사분면별 피크 검출 (clikmap_raspi.py 방식)"""
-        sub = arr[rs, cs]
+    def find_peak(self, arr):
         candidates = sorted(
-            ((v, r, c) for (r, c), v in np.ndenumerate(sub)),
+            ((v, r, c) for (r, c), v in np.ndenumerate(arr)),
             key=lambda x: x[0], reverse=True
         )
-        for value, r_sub, c_sub in candidates:
+        for value, r, c in candidates:
             if value < self.TOUCH_THRESHOLD:
                 continue
-            r = rs.start + r_sub
-            c = cs.start + c_sub
             if np.max(arr[r, :]) > value or np.max(arr[:, c]) > value:
                 continue
             return r, c, value
@@ -184,15 +168,6 @@ class MouseControlThread(QThread):
         self.SCREEN_W = 1280
         self.SCREEN_H = 800
         
-        # 사분면 정의 (clikmap_raspi.py 참고)
-        center_r, center_c = self.NUM_ROWS//2, self.NUM_COLS//2
-        self.quadrants = {
-            'top-left': (slice(0, center_r), slice(0, center_c)),
-            'top-right': (slice(0, center_r), slice(center_c, self.NUM_COLS)),
-            'bottom-left': (slice(center_r, self.NUM_ROWS), slice(0, center_c)),
-            'bottom-right': (slice(center_r, self.NUM_ROWS), slice(center_c, self.NUM_COLS)),
-        }
-        
     def run(self):
         while self.running:
             try:
@@ -202,19 +177,16 @@ class MouseControlThread(QThread):
                     corr = np.clip(corr, 0, 255).astype(np.uint8)
                     filtered = self.keep_row_col_max_intersection(corr)
                     
-                    # 사분면별로 터치 감지 (clikmap_raspi.py 방식)
-                    for quadrant_name, (rs, cs) in self.quadrants.items():
-                        peak = self.find_peak(filtered, rs, cs)
-                        if peak:
-                            r, c, v = peak
-                            if v >= self.TOUCH_THRESHOLD:
-                                # 캘리브레이션된 좌표로 변환
-                                screen_coords = self.map_touch_to_screen(r, c)
-                                if screen_coords:
-                                    x_px, y_px = screen_coords
-                                    pyautogui.moveTo(x_px, y_px)
-                                    print(f"마우스 이동: {quadrant_name} - ({r}, {c}) -> ({x_px}, {y_px})")
-                                    break  # 하나의 터치만 처리
+                    # 터치 감지
+                    peak = self.find_peak(filtered)
+                    if peak:
+                        r, c, v = peak
+                        if v >= self.TOUCH_THRESHOLD:
+                            # 캘리브레이션된 좌표로 변환
+                            screen_coords = self.map_touch_to_screen(r, c)
+                            if screen_coords:
+                                x_px, y_px = screen_coords
+                                pyautogui.moveTo(x_px, y_px)
                             
             except Exception as e:
                 print(f"마우스 제어 오류: {e}")
@@ -252,42 +224,33 @@ class MouseControlThread(QThread):
         mask = (arr == row_max) & (arr == col_max)
         return arr * mask
     
-    def find_peak(self, arr, rs, cs):
-        """사분면별 피크 검출 (clikmap_raspi.py 방식)"""
-        sub = arr[rs, cs]
+    def find_peak(self, arr):
         candidates = sorted(
-            ((v, r, c) for (r, c), v in np.ndenumerate(sub)),
+            ((v, r, c) for (r, c), v in np.ndenumerate(arr)),
             key=lambda x: x[0], reverse=True
         )
-        for value, r_sub, c_sub in candidates:
+        for value, r, c in candidates:
             if value < self.TOUCH_THRESHOLD:
                 continue
-            r = rs.start + r_sub
-            c = cs.start + c_sub
             if np.max(arr[r, :]) > value or np.max(arr[:, c]) > value:
                 continue
             return r, c, value
         return None
     
     def map_touch_to_screen(self, r, c):
-        """터치 좌표를 화면 좌표로 변환 (clikmap_raspi.py 방식)"""
+        """터치 좌표를 화면 좌표로 변환"""
         if self.calibration_matrix is None:
-            # 캘리브레이션 없을 때는 기본 변환 사용
-            x_px = int(round((self.NUM_ROWS - 1 - r) / (self.NUM_ROWS - 1) * (self.SCREEN_W - 1)))
-            y_px = int(round((self.NUM_COLS - 1 - c) / (self.NUM_COLS - 1) * (self.SCREEN_H - 1)))
-            y_px = self.SCREEN_H - y_px
-            return x_px, y_px
-        else:
-            # 캘리브레이션된 변환 사용
-            x_matrix, y_matrix = self.calibration_matrix
-            screen_x = int(np.polyval(x_matrix, r))
-            screen_y = int(np.polyval(y_matrix, c))
-            
-            # 화면 범위 제한
-            screen_x = np.clip(screen_x, 0, self.SCREEN_W-1)
-            screen_y = np.clip(screen_y, 0, self.SCREEN_H-1)
-            
-            return screen_x, screen_y
+            return None
+        
+        x_matrix, y_matrix = self.calibration_matrix
+        screen_x = int(np.polyval(x_matrix, r))
+        screen_y = int(np.polyval(y_matrix, c))
+        
+        # 화면 범위 제한
+        screen_x = np.clip(screen_x, 0, self.SCREEN_W-1)
+        screen_y = np.clip(screen_y, 0, self.SCREEN_H-1)
+        
+        return screen_x, screen_y
     
     def stop(self):
         self.running = False
@@ -444,7 +407,7 @@ class CalibrationGUI(QMainWindow):
         
         # 5초 대기 중에도 터치 감지를 위해 시리얼 연결 및 스레드 시작
         try:
-            self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
+            self.ser = serial.Serial('COM9', 115200, timeout=1)
             self.offset = self.calibrate_offset()
             self.calibration_thread = CalibrationThread(self.ser, self.offset)
             self.calibration_thread.touch_detected.connect(self.on_touch_detected)
@@ -464,7 +427,7 @@ class CalibrationGUI(QMainWindow):
         try:
             # 이미 시리얼이 연결되어 있으면 재사용
             if self.ser is None:
-                self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
+                self.ser = serial.Serial('COM9', 115200, timeout=1)
                 self.offset = self.calibrate_offset()
                 self.calibration_thread = CalibrationThread(self.ser, self.offset)
                 self.calibration_thread.touch_detected.connect(self.on_touch_detected)
