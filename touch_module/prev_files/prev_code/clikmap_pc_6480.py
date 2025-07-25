@@ -16,7 +16,7 @@ NUM_ROWS        = 80            # 80행
 NUM_COLS        = 63            # 63열
 FRAME_SIZE      = NUM_ROWS * NUM_COLS  # 5040 바이트
 CAL_FRAMES      = 10
-TOUCH_THRESHOLD = 100
+TOUCH_THRESHOLD = 50
 
 # ─── 사분면 정의 ────────────────────────────────────────────────────
 center_r, center_c = NUM_ROWS // 2, NUM_COLS // 2
