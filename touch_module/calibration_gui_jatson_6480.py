@@ -16,14 +16,56 @@ PANEL_COLS = 63
 FRAME_SIZE = PANEL_ROWS * PANEL_COLS
 MUX_CHANNELS = 8
 DEVICES = 8
+CAL_FRAMES = 10  # 오프셋 보정 프레임 수
 
+# 시리얼 프레임 동기화 바이트
+SYNC_BYTES = b'\xAA\x55'
+
+# pyautogui 설정
 pyautogui.FAILSAFE = False
 
+# ─── 인덱스 매핑 테이블 (버퍼 인덱스 → (row, col)) ─────────────────
+index_map = []
+for row in range(PANEL_ROWS):
+    for mux in range(MUX_CHANNELS):
+        for dev in range(DEVICES):
+            col = dev * 8 + mux
+            if col < PANEL_COLS:
+                rev_col = PANEL_COLS - 1 - col
+                index_map.append((row, rev_col))
+
+# ─── 프레임 동기화 및 읽기 함수 ─────────────────────────────────────
+def sync_frame(ser):
+    """0xAA 0x55 헤더를 찾아서 동기화"""
+    while True:
+        b = ser.read(1)
+        if not b:
+            continue
+        if b == SYNC_BYTES[:1]:
+            b2 = ser.read(1)
+            if b2 == SYNC_BYTES[1:]:
+                return
+
+
+def read_frame_from_ser(ser):
+    """시리얼로부터 동기화 후 한 프레임 읽어 numpy 2D 배열로 반환"""
+    sync_frame(ser)
+    raw = ser.read(FRAME_SIZE)
+    if len(raw) != FRAME_SIZE:
+        return None
+    data = np.frombuffer(raw, dtype=np.uint8)
+    frame = np.zeros((PANEL_ROWS, PANEL_COLS), dtype=np.uint8)
+    for i, v in enumerate(data):
+        r, c = index_map[i]
+        frame[r, c] = v
+    return frame
+
+# ─── 캘리브레이션 포인트 위젯 ────────────────────────────────────────
 class CalibrationPoint(QFrame):
     """캘리브레이션 포인트 표시 위젯"""
     def __init__(self, position, parent=None):
         super().__init__(parent)
-        self.position = position  # 'top-left', 'top-right', ...
+        self.position = position
         self.is_active = False
         self.is_completed = False
         self.setFixedSize(200, 150)
@@ -40,7 +82,7 @@ class CalibrationPoint(QFrame):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        # 원의 좌표
+        # 원 좌표
         if self.position == 'top-left':
             x, y = 30, 30
         elif self.position == 'top-right':
@@ -50,7 +92,7 @@ class CalibrationPoint(QFrame):
         else:  # bottom-right
             x, y = self.width() - 30, self.height() - 30
 
-        # 색상 결정
+        # 색상
         if self.is_completed:
             color = QColor(0, 255, 0)
         elif self.is_active:
@@ -62,7 +104,6 @@ class CalibrationPoint(QFrame):
         painter.setBrush(color)
         painter.drawEllipse(x - 10, y - 10, 20, 20)
 
-        # 텍스트
         painter.setPen(QPen(Qt.black, 2))
         font = QFont()
         font.setPointSize(10)
@@ -70,60 +111,34 @@ class CalibrationPoint(QFrame):
         text = self.position.replace('-', ' ').title()
         painter.drawText(self.rect(), Qt.AlignCenter, text)
 
-
+# ─── 터치 감지 스레드 ─────────────────────────────────────────────────
 class CalibrationThread(QThread):
-    """터치 감지를 위한 스레드"""
     touch_detected = pyqtSignal(tuple)  # (row, col)
 
     def __init__(self, ser, offset):
         super().__init__()
         self.ser = ser
-        self.offset = offset
+        self.offset = offset.astype(np.float32)
         self.running = True
         self.TOUCH_THRESHOLD = 50
         self.last_touch_time = 0
-        self.cool_down_time = 1.0  # 1초
+        self.cool_down_time = 1.0
 
     def run(self):
         while self.running:
-            try:
-                frame = self.read_frame()
-                if frame is not None:
-                    corr = frame.astype(np.float32) - self.offset
-                    corr = np.clip(corr, 0, 255).astype(np.uint8)
-                    filtered = self.keep_row_col_max_intersection(corr)
-
-                    peak = self.find_peak(filtered)
-                    if peak:
-                        r, c, v = peak
-                        if v >= self.TOUCH_THRESHOLD:
-                            now = time.time()
-                            if now - self.last_touch_time >= self.cool_down_time:
-                                self.touch_detected.emit((r, c))
-                                self.last_touch_time = now
-            except Exception as e:
-                print(f"터치 감지 오류: {e}")
+            frame = read_frame_from_ser(self.ser)
+            if frame is not None:
+                corr = frame.astype(np.float32) - self.offset
+                corr = np.clip(corr, 0, 255).astype(np.uint8)
+                filtered = self.keep_row_col_max_intersection(corr)
+                peak = self.find_peak(filtered)
+                if peak:
+                    r, c, v = peak
+                    now = time.time()
+                    if v >= self.TOUCH_THRESHOLD and now - self.last_touch_time >= self.cool_down_time:
+                        self.touch_detected.emit((r, c))
+                        self.last_touch_time = now
             time.sleep(0.01)
-
-    def read_frame(self):
-        raw = self.ser.read(FRAME_SIZE)
-        if len(raw) != FRAME_SIZE:
-            return None
-        data = np.frombuffer(raw, dtype=np.uint8)
-        frame = np.zeros((PANEL_ROWS, PANEL_COLS), dtype=np.uint8)
-        ptr = 0
-        for row in range(PANEL_ROWS):
-            for mux_ch in range(MUX_CHANNELS):
-                for dev in range(DEVICES):
-                    col = dev * 8 + mux_ch
-                    if col >= PANEL_COLS:
-                        continue
-                    val = data[ptr]
-                    ptr += 1
-                    # 열 뒤집기
-                    rev_col = PANEL_COLS - 1 - col
-                    frame[row, rev_col] = val
-        return frame
 
     def keep_row_col_max_intersection(self, arr):
         row_max = arr.max(axis=1, keepdims=True)
@@ -147,13 +162,12 @@ class CalibrationThread(QThread):
     def stop(self):
         self.running = False
 
-
+# ─── 마우스 제어 스레드 ────────────────────────────────────────────────
 class MouseControlThread(QThread):
-    """마우스 제어 스레드"""
     def __init__(self, ser, offset, calibration_matrix):
         super().__init__()
         self.ser = ser
-        self.offset = offset
+        self.offset = offset.astype(np.float32)
         self.calibration_matrix = calibration_matrix
         self.running = True
         self.TOUCH_THRESHOLD = 100
@@ -162,43 +176,20 @@ class MouseControlThread(QThread):
 
     def run(self):
         while self.running:
-            try:
-                frame = self.read_frame()
-                if frame is not None:
-                    corr = frame.astype(np.float32) - self.offset
-                    corr = np.clip(corr, 0, 255).astype(np.uint8)
-                    filtered = self.keep_row_col_max_intersection(corr)
-
-                    peak = self.find_peak(filtered)
-                    if peak:
-                        r, c, v = peak
-                        if v >= self.TOUCH_THRESHOLD:
-                            pts = self.map_touch_to_screen(r, c)
-                            if pts:
-                                x_px, y_px = pts
-                                pyautogui.moveTo(x_px, y_px)
-            except Exception as e:
-                print(f"마우스 제어 오류: {e}")
+            frame = read_frame_from_ser(self.ser)
+            if frame is not None:
+                corr = frame.astype(np.float32) - self.offset
+                corr = np.clip(corr, 0, 255).astype(np.uint8)
+                filtered = self.keep_row_col_max_intersection(corr)
+                peak = self.find_peak(filtered)
+                if peak:
+                    r, c, v = peak
+                    if v >= self.TOUCH_THRESHOLD:
+                        pts = self.map_touch_to_screen(r, c)
+                        if pts:
+                            x_px, y_px = pts
+                            pyautogui.moveTo(x_px, y_px)
             time.sleep(0.01)
-
-    def read_frame(self):
-        raw = self.ser.read(FRAME_SIZE)
-        if len(raw) != FRAME_SIZE:
-            return None
-        data = np.frombuffer(raw, dtype=np.uint8)
-        frame = np.zeros((PANEL_ROWS, PANEL_COLS), dtype=np.uint8)
-        ptr = 0
-        for row in range(PANEL_ROWS):
-            for mux_ch in range(MUX_CHANNELS):
-                for dev in range(DEVICES):
-                    col = dev * 8 + mux_ch
-                    if col >= PANEL_COLS:
-                        continue
-                    val = data[ptr]
-                    ptr += 1
-                    rev_col = PANEL_COLS - 1 - col
-                    frame[row, rev_col] = val
-        return frame
 
     def keep_row_col_max_intersection(self, arr):
         row_max = arr.max(axis=1, keepdims=True)
@@ -220,7 +211,7 @@ class MouseControlThread(QThread):
         return None
 
     def map_touch_to_screen(self, r, c):
-        if self.calibration_matrix is None:
+        if not self.calibration_matrix:
             return None
         x_mat, y_mat = self.calibration_matrix
         x = int(np.polyval(x_mat, r))
@@ -232,30 +223,22 @@ class MouseControlThread(QThread):
     def stop(self):
         self.running = False
 
-
+# ─── 메인 GUI 클래스 ─────────────────────────────────────────────────
 class CalibrationGUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        # 패널 크기
         self.NUM_ROWS = PANEL_ROWS
         self.NUM_COLS = PANEL_COLS
         self.FRAME_SIZE = FRAME_SIZE
-        # 초기 대기 플래그
         self.waiting_for_start = True
-
         self.ser = None
         self.calibration_thread = None
         self.mouse_control_thread = None
         self.current_step = 0
-        self.calibration_data = {
-            'touch_points': [],
-            'screen_points': [],
-            'matrix': None
-        }
+        self.calibration_data = {'touch_points': [], 'screen_points': [], 'matrix': None}
         self.SCREEN_W = 1280
         self.SCREEN_H = 800
         self.last_touch_coords = None
-
         self.init_ui()
 
     def init_ui(self):
@@ -318,7 +301,6 @@ class CalibrationGUI(QMainWindow):
         self.start_button.hide()
         main.addWidget(self.start_button)
 
-        # 타이머 설정
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_timer)
         self.touch_timer = QTimer(singleShot=True)
@@ -335,6 +317,7 @@ class CalibrationGUI(QMainWindow):
         self.status_label.setText('10초 동안 터치 없으면 캘리브레이션이 시작됩니다...')
         try:
             self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
+            self.ser.reset_input_buffer()
             self.offset = self.calibrate_offset()
             self.calibration_thread = CalibrationThread(self.ser, self.offset)
             self.calibration_thread.touch_detected.connect(self.on_touch_detected)
@@ -350,7 +333,6 @@ class CalibrationGUI(QMainWindow):
         self.start_button.click()
 
     def start_calibration(self):
-        # 초기 대기 단계 해제
         self.waiting_for_start = False
         self.start_button.setEnabled(False)
         self.start_button.setText('진행 중...')
@@ -358,22 +340,9 @@ class CalibrationGUI(QMainWindow):
 
     def calibrate_offset(self):
         frames = []
-        while len(frames) < 10:
-            raw = self.ser.read(FRAME_SIZE)
-            if len(raw) == FRAME_SIZE:
-                data = np.frombuffer(raw, dtype=np.uint8)
-                frame = np.zeros((PANEL_ROWS, PANEL_COLS), dtype=np.uint8)
-                ptr = 0
-                for row in range(PANEL_ROWS):
-                    for mux_ch in range(MUX_CHANNELS):
-                        for dev in range(DEVICES):
-                            col = dev * 8 + mux_ch
-                            if col >= PANEL_COLS:
-                                continue
-                            val = data[ptr]
-                            ptr += 1
-                            rev_col = PANEL_COLS - 1 - col
-                            frame[row, rev_col] = val
+        while len(frames) < CAL_FRAMES:
+            frame = read_frame_from_ser(self.ser)
+            if frame is not None:
                 frames.append(frame.astype(np.float32))
             time.sleep(0.01)
         return np.mean(frames, axis=0).astype(np.float32)
@@ -386,18 +355,10 @@ class CalibrationGUI(QMainWindow):
             p.is_active = False
             p.update()
 
-        messages = {
-            1: '좌측 상단을 터치해주세요',
-            2: '우측 상단을 터치해주세요',
-            3: '좌측 하단을 터치해주세요',
-            4: '우측 하단을 터치해주세요'
-        }
-        widgets = {
-            1: self.top_left,
-            2: self.top_right,
-            3: self.bottom_left,
-            4: self.bottom_right
-        }
+        messages = {1: '좌측 상단을 터치해주세요', 2: '우측 상단을 터치해주세요',
+                    3: '좌측 하단을 터치해주세요', 4: '우측 하단을 터치해주세요'}
+        widgets = {1: self.top_left, 2: self.top_right,
+                   3: self.bottom_left, 4: self.bottom_right}
 
         if self.current_step in messages:
             self.status_label.setText(messages[self.current_step])
@@ -410,23 +371,17 @@ class CalibrationGUI(QMainWindow):
             self.finish_calibration()
 
     def on_touch_detected(self, coords):
-        # 초기 10초 대기 중에만 리셋
         if self.waiting_for_start and self.current_step == 0:
             self.reset_wait_period()
             return
-        # 캘리브레이션 단계 중 터치 리셋
         if 1 <= self.current_step <= 4:
             self.last_touch_coords = coords
             self.touch_timer.stop()
             self.touch_timer.start(5000)
             self.countdown = 5
             self.timer.start(1000)
-            msgs = {
-                1: '좌측 상단을 터치해주세요',
-                2: '우측 상단을 터치해주세요',
-                3: '좌측 하단을 터치해주세요',
-                4: '우측 하단을 터치해주세요'
-            }
+            msgs = {1: '좌측 상단을 터치해주세요', 2: '우측 상단을 터치해주세요',
+                    3: '좌측 하단을 터치해주세요', 4: '우측 하단을 터치해주세요'}
             self.status_label.setText(f"{msgs[self.current_step]} (터치 감지됨 - 5초 리셋)")
 
     def on_touch_timeout(self):
@@ -436,17 +391,13 @@ class CalibrationGUI(QMainWindow):
 
         if self.last_touch_coords:
             r, c = self.last_touch_coords
-            corners = {
-                1: (0, 0),
-                2: (self.SCREEN_W - 1, 0),
-                3: (0, self.SCREEN_H - 1),
-                4: (self.SCREEN_W - 1, self.SCREEN_H - 1)
-            }
+            corners = {1: (0, 0), 2: (self.SCREEN_W-1, 0),
+                       3: (0, self.SCREEN_H-1), 4: (self.SCREEN_W-1, self.SCREEN_H-1)}
             self.calibration_data['touch_points'].append((r, c))
             self.calibration_data['screen_points'].append(corners[self.current_step])
             pts = [self.top_left, self.top_right, self.bottom_left, self.bottom_right]
-            pts[self.current_step - 1].is_completed = True
-            pts[self.current_step - 1].update()
+            pts[self.current_step-1].is_completed = True
+            pts[self.current_step-1].update()
             self.last_touch_coords = None
 
         QTimer.singleShot(2000, self.start_next_step)
@@ -508,7 +459,7 @@ class CalibrationGUI(QMainWindow):
             self.ser.close()
         event.accept()
 
-
+# ─── 애플리케이션 실행 ───────────────────────────────────────────────
 def main():
     app = QApplication(sys.argv)
     if 'linux' in sys.platform:
@@ -516,7 +467,6 @@ def main():
     window = CalibrationGUI()
     window.show()
     sys.exit(app.exec_())
-
 
 if __name__ == '__main__':
     main()
