@@ -5,14 +5,14 @@
   #include <avr/io.h>
 #endif
 
-// ─── 핀 정의 ─────────────────────────────────────────────
+// ─── 핀 정의 ────────────────────────────────────────────────────────────
 const int latchPin       = 10;           // ST_CP
 const int numShiftRegs   = 10;           // 10×8 = 80행
 const int numRows        = numShiftRegs * 8;
 
 const int muxSelectPins[3] = {2, 3, 4};   // S0, S1, S2
 const int numMuxBits       = 3;
-const int muxAnalogPins[8] = {A0, A1, A2, A3, A4, A5, A6, A7};  // A2→dev0 ... A1→dev7
+const int muxAnalogPins[8] = {A0, A1, A2, A3, A4, A5, A6, A7};
 const int numMuxDevices    = 8;
 
 const int numCols = 63;  // 실제로 읽을 열 수
@@ -20,11 +20,11 @@ const int numCols = 63;  // 실제로 읽을 열 수
 void setup() {
   Serial.begin(115200);
 
-  // SPI 세팅 (ShiftRegister 용)
+  // SPI 설정
   pinMode(latchPin, OUTPUT);
   SPI.begin();
   SPI.setDataMode(SPI_MODE0);
-  SPI.setClockDivider(SPI_CLOCK_DIV2);  // 최대 속도
+  SPI.setClockDivider(SPI_CLOCK_DIV4);  // 안정적인 속도로 낮춤
   SPI.setBitOrder(MSBFIRST);
 
   // MUX select 핀
@@ -61,21 +61,23 @@ inline void selectMux(int ch) {
 }
 
 void loop() {
-  for (int row = 0; row < numRows; row++) {
-    selectRow(row);
-    delayMicroseconds(10);  // 최소 안정화
+  // ── 프레임 헤더(싱크 바이트) 전송 ──
+  Serial.write(0xAA);
+  Serial.write(0x55);
 
+  // ── 센서값 전송 ──
+  for (int row = 0; row < numRows; row++) {
+    selectRow(numRows - row - 1);
+    delayMicroseconds(50);    // 안정화 지연
     for (int ch = 0; ch < (1 << numMuxBits); ch++) {
       selectMux(ch);
-      delayMicroseconds(10);
-
+      delayMicroseconds(50);
       for (int dev = 0; dev < numMuxDevices; dev++) {
         int col = dev * 8 + ch;
         if (col >= numCols) continue;
-        uint8_t v = analogRead(muxAnalogPins[dev]) >> 2;  // 10→8비트
+        uint8_t v = analogRead(muxAnalogPins[dev]) >> 2;  // 10비트를 8비트로
         Serial.write(v);
       }
     }
   }
-  // 필요시 적절히 delay 조정
 }
