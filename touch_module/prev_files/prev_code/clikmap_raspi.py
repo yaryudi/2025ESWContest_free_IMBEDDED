@@ -9,7 +9,7 @@ import pyautogui   # pip install pyautogui
 #최적화용 python 코드
 
 # 한글 폰트 설정 (Windows Malgun Gothic)
-plt.rcParams['font.family'] = 'Malgun Gothic'
+plt.rcParams['font.family'] = 'NanumGothic'
 plt.rcParams['axes.unicode_minus'] = False
 
 # ─── 설정 ───────────────────────────────────────────────────────────

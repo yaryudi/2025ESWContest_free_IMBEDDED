@@ -6,7 +6,7 @@ from matplotlib.patches import Circle
 import time
 
 # 한글 폰트 설정 (Windows Malgun Gothic)
-plt.rcParams['font.family'] = 'Malgun Gothic'
+plt.rcParams['font.family'] = 'NanumGothic'
 plt.rcParams['axes.unicode_minus'] = False
 
 # ─── 설정 ───────────────────────────────────────────────────────────
