@@ -171,8 +171,8 @@ class MouseControlThread(QThread):
         self.calibration_matrix = calibration_matrix
         self.running = True
         self.TOUCH_THRESHOLD = 100
-        self.SCREEN_W = 1200
-        self.SCREEN_H = 800
+        self.SCREEN_W = 1980
+        self.SCREEN_H = 1080
 
     def run(self):
         while self.running:
@@ -236,8 +236,8 @@ class CalibrationGUI(QMainWindow):
         self.mouse_control_thread = None
         self.current_step = 0
         self.calibration_data = {'touch_points': [], 'screen_points': [], 'matrix': None}
-        self.SCREEN_W = 1280
-        self.SCREEN_H = 800
+        self.SCREEN_W = 1920
+        self.SCREEN_H = 1080
         self.last_touch_coords = None
         self.init_ui()
 
