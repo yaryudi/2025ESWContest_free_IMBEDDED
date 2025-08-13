@@ -120,7 +120,7 @@ class CalibrationThread(QThread):
         self.ser = ser
         self.offset = offset.astype(np.float32)
         self.running = True
-        self.TOUCH_THRESHOLD = 50
+        self.TOUCH_THRESHOLD = 35
         self.last_touch_time = 0
         self.cool_down_time = 1.0
 
@@ -170,7 +170,7 @@ class MouseControlThread(QThread):
         self.offset = offset.astype(np.float32)
         self.calibration_matrix = calibration_matrix
         self.running = True
-        self.TOUCH_THRESHOLD = 100
+        self.TOUCH_THRESHOLD = 35
         self.SCREEN_W = 1980
         self.SCREEN_H = 1080
 
