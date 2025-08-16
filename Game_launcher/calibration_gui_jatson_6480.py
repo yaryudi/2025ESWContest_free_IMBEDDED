@@ -9,6 +9,7 @@ from PyQt5.QtGui import QFont, QPainter, QPen, QColor
 import serial
 import numpy as np
 import pyautogui
+import os
 
 # ───────────────── 설정 ─────────────────
 # 시리얼 포트/보레이트
@@ -541,6 +542,14 @@ class CalibrationGUI(QMainWindow):
                 self.SCREEN_W, self.SCREEN_H
             )
             self.mouse_control_thread.start()
+
+            # 캘리브레이션 완료 신호 파일 생성
+            try:
+                with open('.calibration_complete', 'w') as f:
+                    pass
+            except Exception as e:
+                print(f"신호 파일 생성 실패: {e}")
+
             QTimer.singleShot(3000, self.minimize_window)
         else:
             self.status_label.setText('캘리브레이션 실패. 다시 시도해주세요.')
