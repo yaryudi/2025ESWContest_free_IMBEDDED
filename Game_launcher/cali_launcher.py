@@ -8,7 +8,7 @@ def main():
     # 캘리브레이션 실행
     print("터치패드 캘리브레이션을 시작합니다...")
     try:
-        calibration_process = subprocess.run([sys.executable, 'calibration_gui.py'], 
+        calibration_process = subprocess.run([sys.executable, 'calibration_gui_jatson_6480.py'], 
                                            capture_output=True, text=True)
         
         if calibration_process.returncode == 0:
