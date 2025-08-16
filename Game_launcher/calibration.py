@@ -13,7 +13,7 @@ import os
 
 # ───────────────── 설정 ─────────────────
 # 시리얼 포트/보레이트
-SER_PORT   = '/dev/ttyACM0'
+SER_PORT   = '/dev/ttyUSB0'
 BAUDRATE   = 115200
 
 # 패널 및 MUX 설정
@@ -24,7 +24,7 @@ MUX_CHANNELS  = 8
 DEVICES       = 8
 
 # 터치 임계값
-TOUCH_THRESHOLD = 30
+TOUCH_THRESHOLD = 20
 
 # 프레임 헤더
 SYNC_HDR = b'\xAA\x55'
@@ -293,8 +293,8 @@ class CalibrationGUI(QMainWindow):
         }
 
         # 화면 해상도(원하는 해상도로 설정)
-        self.SCREEN_W = 1280
-        self.SCREEN_H = 800
+        self.SCREEN_W = 1920
+        self.SCREEN_H = 1080
         self.last_touch_coords = None
 
         self.init_ui()
