@@ -1,85 +1,83 @@
 #include <Arduino.h>
+#include <SPI.h>
 
-//최적화용 코드
+#if defined(__AVR_ATmega4809__)
+  #include <avr/io.h>
+#endif
 
-// Velostat 센서 어레이 제어용 Arduino 코드 (40×30)
-// • 5×8-bit Shift Register → 40개 행(Row) 제어
-// • 4×8-ch MUX(CD4051) → 32개 열 중 앞 30개 열(Column) 선택
-// • MUX Select 핀 3개는 공통, COM 핀은 A0~A3로 분리
+// ─── 핀 정의 ────────────────────────────────────────────────────────────
+const int latchPin       = 10;           // ST_CP
+const int numShiftRegs   = 10;           // 10×8 = 80행
+const int numRows        = numShiftRegs * 8;
 
-// ─── 핀 정의 ─────────────────────────────────────────────
-const int shiftDataPin  = 2;   // DS (시리얼 데이터 입력)
-const int shiftClockPin = 3;   // SH_CP (클럭, 모든 SR에 병렬)
-const int shiftLatchPin = 4;   // ST_CP (래치)
-
-const int numShiftRegs = 5;    // 5 × 8 = 40개 행
-
-// MUX 선택 핀 (S0, S1, S2) – 공통으로 물림
-const int muxSelectPins[3] = {5, 6, 7};
+const int muxSelectPins[3] = {2, 3, 4};   // S0, S1, S2
 const int numMuxBits       = 3;
+const int muxAnalogPins[8] = {A0, A1, A2, A3, A4, A5, A6, A7};
+const int numMuxDevices    = 8;
 
-// MUX 공통 출력(COM) – 각각 A0~A3에 연결
-const int muxAnalogPins[] = {A0, A1, A2, A3};
-const int numMuxDevices   = sizeof(muxAnalogPins) / sizeof(muxAnalogPins[0]);
-
-const int numCols = 30;      // 실제로 읽을 열 개수 (4×8=32 중 앞 30개)
-const int numRows = numShiftRegs * 8;  // 40
+const int numCols = 63;  // 실제로 읽을 열 수
 
 void setup() {
   Serial.begin(115200);
-  pinMode(shiftDataPin,  OUTPUT);
-  pinMode(shiftClockPin, OUTPUT);
-  pinMode(shiftLatchPin, OUTPUT);
+
+  // SPI 설정
+  pinMode(latchPin, OUTPUT);
+  SPI.begin();
+  SPI.setDataMode(SPI_MODE0);
+  SPI.setClockDivider(SPI_CLOCK_DIV4);  // 안정적인 속도로 낮춤
+  SPI.setBitOrder(MSBFIRST);
+
+  // MUX select 핀
   for (int i = 0; i < numMuxBits; i++) {
     pinMode(muxSelectPins[i], OUTPUT);
   }
 
-  // ADC Prescaler 변경 (기본값 128 -> 16)
-  ADCSRA &= ~((1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0));
-  ADCSRA |= (1 << ADPS2);
+  // ADC 분주비 16
+  #if defined(__AVR_ATmega4809__)
+    ADC0.CTRLC = ADC_PRESC_DIV16_gc;
+  #else
+    ADCSRA = (ADCSRA & ~((1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0)))
+             | (1<<ADPS2);
+  #endif
+}
+
+inline void selectRow(int row) {
+  digitalWrite(latchPin, LOW);
+  for (int r = 0; r < numShiftRegs; r++) {
+    uint8_t b = 0;
+    int base = (numShiftRegs - r - 1) * 8;
+    if (row >= base && row < base + 8) {
+      b = 1 << (row - base);
+    }
+    SPI.transfer(b);
+  }
+  digitalWrite(latchPin, HIGH);
+}
+
+inline void selectMux(int ch) {
+  for (int i = 0; i < numMuxBits; i++) {
+    digitalWrite(muxSelectPins[i], (ch >> i) & 1);
+  }
 }
 
 void loop() {
-  // 각 행을 차례로 활성화
+  // ── 프레임 헤더(싱크 바이트) 전송 ──
+  Serial.write(0xAA);
+  Serial.write(0x55);
+
+  // ── 센서값 전송 ──
   for (int row = 0; row < numRows; row++) {
-    selectRow(row);
-    delayMicroseconds(50);  // 행 선택 안정화
-
-    // MUX 채널별로 데이터 수집 (0-7)
-    for (int mux_ch = 0; mux_ch < 8; mux_ch++) {
-      selectMux(mux_ch);
-      delayMicroseconds(5);  // MUX 안정화 시간
-
-      // 각 MUX 디바이스에서 데이터 읽기
+    selectRow(numRows - row - 1);
+    delayMicroseconds(100);    // 안정화 지연
+    for (int ch = 0; ch < (1 << numMuxBits); ch++) {
+      selectMux(ch);
+      delayMicroseconds(100);
       for (int dev = 0; dev < numMuxDevices; dev++) {
-        int col = dev * 8 + mux_ch;  // 실제 열 인덱스 계산
+        int col = dev * 8 + ch;
         if (col >= numCols) continue;
-
-        unsigned char val_byte = analogRead(muxAnalogPins[dev]) >> 2;
-        Serial.write(val_byte);
+        uint8_t v = analogRead(muxAnalogPins[dev]) >> 2;  // 10비트를 8비트로
+        Serial.write(v);
       }
     }
-  }
-  delay(50);  // 전체 스캔 주기
-}
-
-// ─── 행 선택 (40비트 중 하나만 '1') ──────────────────────
-void selectRow(int row) {
-  digitalWrite(shiftLatchPin, LOW);
-  for (int reg = 0; reg < numShiftRegs; reg++) {
-    uint8_t b = 0;
-    int startBit = reg * 8;
-    if (row >= startBit && row < startBit + 8) {
-      b = 1 << (row - startBit);
-    }
-    shiftOut(shiftDataPin, shiftClockPin, LSBFIRST, b);
-  }
-  digitalWrite(shiftLatchPin, HIGH);
-}
-
-// ─── MUX 채널 선택 (0~7) ────────────────────────────────
-void selectMux(int channel) {
-  for (int i = 0; i < numMuxBits; i++) {
-    digitalWrite(muxSelectPins[i], (channel >> i) & 1);
   }
 }

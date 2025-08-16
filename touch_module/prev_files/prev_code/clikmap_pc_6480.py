@@ -5,18 +5,19 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import time
 
-# 한글 폰트 설정 (Windows Malgun Gothic)
-plt.rcParams['font.family'] = 'Malgun Gothic'
+# 한글 폰트 설정 (NanumGothic)
+plt.rcParams['font.family'] = 'NanumGothic'
 plt.rcParams['axes.unicode_minus'] = False
 
 # ─── 설정 ───────────────────────────────────────────────────────────
-PORT            = 'COM12'
+PORT            = 'COM15'
 BAUDRATE        = 115200
 NUM_ROWS        = 80            # 80행
 NUM_COLS        = 63            # 63열
 FRAME_SIZE      = NUM_ROWS * NUM_COLS  # 5040 바이트
 CAL_FRAMES      = 10
-TOUCH_THRESHOLD = 50
+TOUCH_THRESHOLD = 20
+SYNC_BYTES      = b'\xAA\x55'   # Arduino에서 보내는 프레임 헤더
 
 # ─── 사분면 정의 ────────────────────────────────────────────────────
 center_r, center_c = NUM_ROWS // 2, NUM_COLS // 2
@@ -27,33 +28,43 @@ quadrants = {
     '제4사분면(하-우)': (slice(center_r, NUM_ROWS), slice(center_c, NUM_COLS)),
 }
 
+# ─── 인덱스 매핑 테이블 (버퍼 인덱스 → (row, col)) ─────────────────
+index_map = []
+for row in range(NUM_ROWS):
+    for mux in range(8):
+        for dev in range(8):
+            col = dev * 8 + mux
+            if col < NUM_COLS:
+                rev_col = NUM_COLS - 1 - col
+                index_map.append((row, rev_col))
+
 def list_ports():
     print("Available serial ports:")
     for p in serial.tools.list_ports.comports():
         print(" •", p.device)
 
+def sync_frame():
+    """0xAA 0x55 헤더를 찾아서 동기화"""
+    while True:
+        b = ser.read(1)
+        if b == SYNC_BYTES[:1]:
+            b2 = ser.read(1)
+            if b2 == SYNC_BYTES[1:]:
+                return
+
 def read_frame():
+    # 1) 헤더 동기화
+    sync_frame()
+    # 2) 본문 읽기
     raw = ser.read(FRAME_SIZE)
     if len(raw) != FRAME_SIZE:
         return None
 
     data = np.frombuffer(raw, dtype=np.uint8)
     frame = np.zeros((NUM_ROWS, NUM_COLS), dtype=np.uint8)
-
-    ptr = 0
-    for row in range(NUM_ROWS):
-        for mux_ch in range(8):        # MUX 채널 0~7
-            for dev in range(8):       # MUX 디바이스 A0~A7
-                col = dev * 8 + mux_ch
-                if col >= NUM_COLS:
-                    continue
-                val = data[ptr]
-                ptr += 1
-
-                # **열을 뒤집어서** (0→NUM_COLS-1, …, NUM_COLS-1→0)
-                rev_col = NUM_COLS - 1 - col
-                frame[row, rev_col] = val
-
+    for i, v in enumerate(data):
+        r, c = index_map[i]
+        frame[r, c] = v
     return frame
 
 def calibrate():
@@ -83,21 +94,20 @@ def find_peak(arr, rs, cs):
             return r, c, int(v)
     return None
 
-# ─── 메인 ───────────────────────────────────────────────────────────
 if __name__ == "__main__":
     list_ports()
     mode = input("모드 선택 — 히트맵(h) / 콘솔(c): ").strip().lower()
     use_heatmap = (mode == 'h')
 
     ser = serial.Serial(PORT, BAUDRATE, timeout=1)
+    ser.reset_input_buffer()
     offset = calibrate()
     last_print = time.time()
 
     if use_heatmap:
         plt.ion()
         fig, ax = plt.subplots()
-        im = ax.imshow(np.zeros((NUM_ROWS, NUM_COLS), dtype=np.uint8),
-                       cmap='hot', vmin=0, vmax=255)
+        im = ax.imshow(np.zeros((NUM_ROWS, NUM_COLS)), cmap='hot', vmin=0, vmax=255)
         ax.set_title(f"{NUM_ROWS}×{NUM_COLS} 센서 배열 (필터링 후)")
         circles = []
 
@@ -121,7 +131,6 @@ if __name__ == "__main__":
                 if not pk:
                     continue
                 r, c, v = pk
-
                 if use_heatmap:
                     circ = Circle((c, r), radius=1.5, fill=False,
                                   edgecolor='cyan', linewidth=2)
@@ -134,10 +143,8 @@ if __name__ == "__main__":
                 fig.canvas.draw_idle()
                 fig.canvas.flush_events()
 
-            # 콘솔 출력 0.5초마다
-            now = time.time()
-            if not use_heatmap and now - last_print >= 0.5:
-                last_print = now
+            if not use_heatmap and time.time() - last_print >= 0.5:
+                last_print = time.time()
 
     except KeyboardInterrupt:
         print("프로그램 종료")
