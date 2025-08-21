@@ -1,14 +1,13 @@
 """
 카드 인식 테스트 모듈
-라즈베리파이 IMX708 광각 카메라로 이미지를 캡처하고 YOLO 모델을 사용하여 포커 카드를 인식합니다.
+젝슨나노 IMX219 카메라로 이미지를 캡처하고 YOLO 모델을 사용하여 포커 카드를 인식합니다.
 최적화된 버전: 좌표만 미리 추출하고 필요할 때만 카드 인식
 """
 
-import cv2
+import subprocess, os, cv2
 import numpy as np
 from ultralytics import YOLO
 import time
-from picamera2 import Picamera2
 import multiprocessing as mp
 from functools import partial
 
@@ -28,19 +27,48 @@ def process_card_worker(model_path, warped_image):
         print(f"Error in worker process: {e}")
         return "Unknown"
 
+class FrameCapture:
+    def __init__(self, path="/tmp/_gst_frame.jpg"):
+        self._path = path
+        # 리스트 형태로 나누면 shell=False 로 안전하게 실행됩니다.
+        self._cmd = [
+            "gst-launch-1.0",
+            "nvarguscamerasrc", "sensor-id=0", "sensor-mode=4", "num-buffers=1",
+            "!",
+            "video/x-raw(memory:NVMM),width=1280,height=720,format=NV12,framerate=30/1",
+            "!",
+            "nvvidconv",
+            "!",
+            "video/x-raw,format=BGRx",
+            "!",
+            "videoconvert",
+            "!",
+            "video/x-raw,format=BGR",
+            "!",
+            "jpegenc",
+            "!",
+            f"filesink", f"location={self._path}", "-e"
+        ]
+
+    def read(self):
+        # 파일 삭제
+        try: os.remove(self._path)
+        except OSError: pass
+
+        # 리스트 인자로 실행 (shell=False 가 기본)
+        subprocess.run(self._cmd, check=True)
+        img = cv2.imread(self._path)
+        return (False, None) if img is None else (True, img)
+
+    def release(self):
+        try: os.remove(self._path)
+        except OSError: pass
+
 class CardDetector:
     def __init__(self, num_players=5):
-        self.picam2 = Picamera2()
-        config = self.picam2.create_preview_configuration(
-            main={"size": (4608, 2592), "format": "RGB888"},
-            controls={
-                "AeExposureMode": 1,
-                "ExposureValue": -0.5,
-                "ScalerCrop": (0, 0, 4608, 2592)
-            }
-        )
-        self.picam2.configure(config)
-        self.picam2.start()
+        
+        self.cap = FrameCapture()
+        
         self.model_path = "playingCards.pt"
         self.num_players = num_players
         self.update_card_positions()
@@ -89,9 +117,15 @@ class CardDetector:
     def extract_card_coordinates(self):
         """카드 좌표만 추출하여 저장"""
         try:
-            image = self.picam2.capture_array()
+            ret, image = self.cap.read()
+            if not ret:
+                print("카메라에서 이미지를 읽을 수 없습니다.")
+                return False
+            
+            # 이미지 저장 (디버깅용)
             image_path = f"assets/test_image/capture.jpg"
             cv2.imwrite(image_path, image)
+            
             card_contours = self.detect_card_edges(image)
             
             if card_contours and len(card_contours) >= self.total_cards:
@@ -134,7 +168,11 @@ class CardDetector:
                 return None
         
         try:
-            image = self.picam2.capture_array()
+            ret, image = self.cap.read()
+            if not ret:
+                print("카메라에서 이미지를 읽을 수 없습니다.")
+                return None
+            
             detected_cards = ["Unknown"] * len(card_indices)
             
             # 필요한 카드만 처리
@@ -360,7 +398,6 @@ class CardDetector:
 
     def close(self):
         """리소스 정리"""
-        self.picam2.stop()
+        self.cap.release()
         self.pool.close()
         self.pool.join()
-

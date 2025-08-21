@@ -14,7 +14,6 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 import time
-from picamera2 import Picamera2
 
 
 class RaiseDialog(QDialog):
@@ -23,47 +22,272 @@ class RaiseDialog(QDialog):
     def __init__(self, parent, min_amount, max_amount, current_bet):
         super().__init__(parent)
         self.setWindowTitle("레이즈 금액 설정")
-        self.setFixedSize(300, 150)
+        self.setFixedSize(400, 250)
+        self.setWindowFlags(Qt.FramelessWindowHint)  # 윗 틀 제거
+        
+        # 전체 창 스타일 설정
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #2C3E50;
+                border: 3px solid #34495E;
+                border-radius: 15px;
+            }
+        """)
 
         layout = QVBoxLayout()
+        layout.setSpacing(10)
+        layout.setContentsMargins(15, 15, 15, 15)
         
         # 현재 베팅 정보 표시
-        current_bet_label = QLabel(f"현재 베팅: {current_bet}", self)
+        current_bet_label = QLabel(f"현재 베팅: {current_bet:,}칩")
         current_bet_label.setAlignment(Qt.AlignCenter)
+        current_bet_label.setFont(QFont("Arial", 14))
+        current_bet_label.setStyleSheet("color: #3498DB; background-color: #34495E; padding: 8px; border-radius: 10px;")
         layout.addWidget(current_bet_label)
         
         # 최소 레이즈 금액 표시
-        min_raise_label = QLabel(f"최소 레이즈: {min_amount}", self)
+        min_raise_label = QLabel(f"최소 레이즈: {min_amount:,}칩")
         min_raise_label.setAlignment(Qt.AlignCenter)
+        min_raise_label.setFont(QFont("Arial", 14))
+        min_raise_label.setStyleSheet("color: #E74C3C; background-color: #34495E; padding: 8px; border-radius: 10px;")
         layout.addWidget(min_raise_label)
 
-        # 금액 입력을 위한 스핀박스
-        self.spin = QSpinBox()
-        self.spin.setMinimum(min_amount)
-        self.spin.setMaximum(max_amount)
-        self.spin.setSingleStep(100)
-        self.spin.setValue(min_amount)
+        # 금액 입력을 위한 커스텀 컨트롤 (가로 배치)
+        amount_layout = QHBoxLayout()
+        amount_layout.setSpacing(10)
+        
+        # 다운 버튼 (왼쪽)
+        down_btn = QPushButton("▼")
+        down_btn.setFixedSize(60, 60)
+        down_btn.setFont(QFont("Arial", 20, QFont.Bold))
+        down_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #E74C3C;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #C0392B;
+            }
+            QPushButton:pressed {
+                background-color: #A93226;
+            }
+        """)
+        down_btn.clicked.connect(self.decrease_amount)
+        amount_layout.addWidget(down_btn)
+        
+        # 금액 표시 라벨 (중앙)
+        self.amount_label = QLabel(f"{min_amount:,}")
+        self.amount_label.setAlignment(Qt.AlignCenter)
+        self.amount_label.setFont(QFont("Arial", 24, QFont.Bold))
+        self.amount_label.setStyleSheet("""
+            QLabel {
+                background-color: #ECF0F1;
+                border: 3px solid #BDC3C7;
+                border-radius: 15px;
+                padding: 10px;
+                color: #2C3E50;
+                font-weight: bold;
+                min-width: 200px;
+            }
+        """)
+        self.amount_label.setFixedHeight(60)
+        amount_layout.addWidget(self.amount_label)
+        
+        # 업 버튼 (오른쪽)
+        up_btn = QPushButton("▲")
+        up_btn.setFixedSize(60, 60)
+        up_btn.setFont(QFont("Arial", 20, QFont.Bold))
+        up_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #27AE60;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+            QPushButton:pressed {
+                background-color: #1E8449;
+            }
+        """)
+        up_btn.clicked.connect(self.increase_amount)
+        amount_layout.addWidget(up_btn)
+        
+        # 현재 값 저장
+        self.current_amount = min_amount
+        self.min_amount = min_amount
+        self.max_amount = max_amount
+        
+        layout.addLayout(amount_layout)
 
         # 확인/취소 버튼
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(15)
+        
         ok_btn = QPushButton("확인")
-        cancel_btn = QPushButton("취소")
+        ok_btn.setFont(QFont("Arial", 14, QFont.Bold))
+        ok_btn.setFixedSize(120, 45)
+        ok_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #27AE60;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                padding: 10px;
+            }
+            QPushButton:hover {
+                background-color: #229954;
+            }
+            QPushButton:pressed {
+                background-color: #1E8449;
+            }
+        """)
         ok_btn.clicked.connect(self.accept)
+        
+        cancel_btn = QPushButton("취소")
+        cancel_btn.setFont(QFont("Arial", 14, QFont.Bold))
+        cancel_btn.setFixedSize(120, 45)
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #E74C3C;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                padding: 10px;
+            }
+            QPushButton:hover {
+                background-color: #C0392B;
+            }
+            QPushButton:pressed {
+                background-color: #A93226;
+            }
+        """)
         cancel_btn.clicked.connect(self.reject)
+        
         button_layout.addWidget(ok_btn)
         button_layout.addWidget(cancel_btn)
-
-        layout.addWidget(self.spin)
         layout.addLayout(button_layout)
         self.setLayout(layout)
 
+    def increase_amount(self):
+        """금액을 증가시킵니다."""
+        if self.current_amount < self.max_amount:
+            self.current_amount += 100
+            self.amount_label.setText(f"{self.current_amount:,}")
+
+    def decrease_amount(self):
+        """금액을 감소시킵니다."""
+        if self.current_amount > self.min_amount:
+            self.current_amount -= 100
+            self.amount_label.setText(f"{self.current_amount:,}")
+
     def get_value(self):
         """입력된 레이즈 금액을 반환합니다."""
-        return self.spin.value()
+        return self.current_amount
 
     def set_position(self, x, y):
         """다이얼로그의 위치를 설정합니다."""
         self.move(x, y)
+
+
+class GameExitDialog(QDialog):
+    """게임 종료 확인 다이얼로그 창"""
+    
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowTitle("게임 종료")
+        self.setFixedSize(500, 600)
+        self.setWindowFlags(Qt.FramelessWindowHint)  # 타이틀바 제거
+        
+        # 전체 창 스타일 설정
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #2C3E50;
+                border: 3px solid #34495E;
+                border-radius: 20px;
+            }
+        """)
+
+        layout = QVBoxLayout()
+        layout.setSpacing(15)
+        layout.setContentsMargins(30, 40, 30, 40)
+        
+        # 제목 라벨
+        title_label = QLabel("게임 종료")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setFont(QFont("Arial", 28, QFont.Bold))
+        title_label.setStyleSheet("color: #BDC3C7; background-color: #2C3E50; margin-bottom: 5px;")
+        layout.addWidget(title_label)
+        
+        # 메시지 라벨
+        message_label = QLabel("정말로 게임을 종료하시겠습니까?")
+        message_label.setAlignment(Qt.AlignCenter)
+        message_label.setFont(QFont("Arial", 20))
+        message_label.setStyleSheet("color: #BDC3C7; background-color: #34495E; padding: 15px; border-radius: 15px;")
+        layout.addWidget(message_label)
+        
+        # 경고 아이콘 또는 텍스트
+        warning_label = QLabel("⚠️")
+        warning_label.setAlignment(Qt.AlignCenter)
+        warning_label.setFont(QFont("Arial", 48))
+        warning_label.setStyleSheet("color: #2C3E50; background-color: #2C3E50; margin: 5px;")
+        layout.addWidget(warning_label)
+
+        # 버튼 레이아웃
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(25)
+        
+        # 취소 버튼
+        cancel_btn = QPushButton("취소")
+        cancel_btn.setFont(QFont("Arial", 18, QFont.Bold))
+        cancel_btn.setFixedSize(160, 55)
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3498DB;
+                color: white;
+                border: none;
+                border-radius: 12px;
+                padding: 5px;
+            }
+            QPushButton:hover {
+                background-color: #2980B9;
+            }
+            QPushButton:pressed {
+                background-color: #1F618D;
+            }
+        """)
+        cancel_btn.clicked.connect(self.reject)
+        
+        # 종료 버튼
+        exit_btn = QPushButton("종료")
+        exit_btn.setFont(QFont("Arial", 18, QFont.Bold))
+        exit_btn.setFixedSize(160, 55)
+        exit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #E74C3C;
+                color: white;
+                border: none;
+                border-radius: 12px;
+                padding: 5px;
+            }
+            QPushButton:hover {
+                background-color: #C0392B;
+            }
+            QPushButton:pressed {
+                background-color: #A93226;
+            }
+        """)
+        exit_btn.clicked.connect(self.accept)
+        
+        button_layout.addWidget(cancel_btn)
+        button_layout.addWidget(exit_btn)
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
 
 
 class PokerGame(QWidget):
@@ -1736,7 +1960,7 @@ class PokerGame(QWidget):
                     if not self.card_detector.extract_card_coordinates():
                         retry_count += 1
                         if retry_count < max_retries:
-                            self.update_message("카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
+                            self.update_message(f"카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
                             QApplication.processEvents()
                             time.sleep(1)
                         else:
@@ -1768,7 +1992,7 @@ class PokerGame(QWidget):
                 else:
                     retry_count += 1
                     if retry_count < max_retries:
-                        self.update_message("플랍 카드 인식에 실패했습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
+                        self.update_message(f"플랍 카드 인식에 실패했습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
                         QApplication.processEvents()
                         time.sleep(1)
                     else:
@@ -1802,7 +2026,7 @@ class PokerGame(QWidget):
                     if not self.card_detector.extract_card_coordinates():
                         retry_count += 1
                         if retry_count < max_retries:
-                            self.update_message("카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
+                            self.update_message(f"카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
                             QApplication.processEvents()
                             time.sleep(1)
                         else:
@@ -1821,7 +2045,7 @@ class PokerGame(QWidget):
                 else:
                     retry_count += 1
                     if retry_count < max_retries:
-                        self.update_message("턴 카드 인식 실패: 카드를 인식할 수 없습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
+                        self.update_message(f"턴 카드 인식 실패: 카드를 인식할 수 없습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
                         QApplication.processEvents()
                         time.sleep(1)
                     else:
@@ -1855,7 +2079,7 @@ class PokerGame(QWidget):
                     if not self.card_detector.extract_card_coordinates():
                         retry_count += 1
                         if retry_count < max_retries:
-                            self.update_message("카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
+                            self.update_message(f"카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
                             QApplication.processEvents()
                             time.sleep(1)
                         else:
@@ -1874,7 +2098,7 @@ class PokerGame(QWidget):
                 else:
                     retry_count += 1
                     if retry_count < max_retries:
-                        self.update_message("리버 카드 인식 실패: 카드를 인식할 수 없습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
+                        self.update_message(f"리버 카드 인식 실패: 카드를 인식할 수 없습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
                         QApplication.processEvents()
                         time.sleep(1)
                     else:
@@ -1908,7 +2132,7 @@ class PokerGame(QWidget):
                     if not self.card_detector.extract_card_coordinates():
                         retry_count += 1
                         if retry_count < max_retries:
-                            self.update_message("카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
+                            self.update_message(f"카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
                             QApplication.processEvents()
                             time.sleep(1)
                         else:
@@ -1941,7 +2165,7 @@ class PokerGame(QWidget):
                 else:
                     retry_count += 1
                     if retry_count < max_retries:
-                        self.update_message("플레이어 카드 인식 실패: 일부 카드를 인식할 수 없습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
+                        self.update_message(f"플레이어 카드 인식 실패: 일부 카드를 인식할 수 없습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
                         QApplication.processEvents()
                         time.sleep(1)
                     else:
@@ -2003,7 +2227,10 @@ class PokerGame(QWidget):
         """카메라로 캡처한 화면을 3초간 보여줍니다."""
         try:
             # 카메라로 이미지 캡처
-            image = self.card_detector.picam2.capture_array()
+            ret, image = self.card_detector.cap.read()
+            if not ret:
+                self.update_message("카메라에서 이미지를 읽을 수 없습니다.")
+                return
             
             # 이미지 크기 조정 (게임 화면에 맞게)
             height, width = image.shape[:2]
@@ -2056,12 +2283,10 @@ class PokerGame(QWidget):
 
     def close_game(self):
         """게임을 종료합니다."""
-        # 게임 종료 확인 다이얼로그
-        from PyQt5.QtWidgets import QMessageBox
-        reply = QMessageBox.question(self, '게임 종료', 
-                                   '정말로 게임을 종료하시겠습니까?',
-                                   QMessageBox.Yes | QMessageBox.No,
-                                   QMessageBox.No)
-
-        if reply == QMessageBox.Yes:
+        # 커스텀 게임 종료 다이얼로그
+        dialog = GameExitDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            # 카드 디텍터 리소스 정리
+            if hasattr(self, 'card_detector'):
+                self.card_detector.close()
             self.close()
