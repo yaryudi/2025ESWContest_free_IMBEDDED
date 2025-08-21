@@ -299,8 +299,8 @@ class PokerGame(QWidget):
         self.card_width = 80  # 카드 슬롯 크기
         self.card_height = 112
         self.setWindowTitle("텍사스 홀덤 포커")
-        self.setMinimumSize(1280, 800)
-        self.resize(1280, 800)
+        self.setMinimumSize(1920, 1080)
+        self.resize(1920, 1080)
         self.setStyleSheet("background-color: #0B6623;")
 
         self.initialization_complete = False
@@ -485,9 +485,9 @@ class PokerGame(QWidget):
         self.exit_button.clicked.connect(self.close_game)
         
         # 카드 크기 설정
-        self.card_width = 80  # 134에서 80으로 축소
-        self.card_height = 112  # 192에서 112로 축소
-        card_spacing = 10  # 20에서 10으로 축소
+        self.card_width = 160  
+        self.card_height = 224 
+        card_spacing = 20
         
         # 컨테이너 크기 계산
         container_width = (self.card_width * 5) + (card_spacing * 4) + 20  # 카드 5장 + 간격 4개 + 좌우 패딩
@@ -572,8 +572,8 @@ class PokerGame(QWidget):
         offset_y = 75
         community_y = center_y - 120 + offset_y
         community_bottom = community_y + self.community_container.height()
-        # 총 팟 라벨을 커뮤니티 카드 컨테이너 아래쪽에 일정한 간격(160px)을 두고 배치
-        pot_y = community_bottom + 160
+        # 총 팟 라벨을 커뮤니티 카드 컨테이너 아래쪽에 일정한 간격(230px)을 두고 배치
+        pot_y = community_bottom + 230
         # 팟 라벨 위치 설정
         self.pot_label.move(center_x - self.pot_label.width() // 2, pot_y)
         # 원래 위치 저장 (팟 애니메이션용)
@@ -582,9 +582,9 @@ class PokerGame(QWidget):
 
     def setup_players_ui(self):
         # 카드 크기 및 컨테이너 크기 재설정 (모든 위치 계산에 사용)
-        self.card_width = 80
-        self.card_height = 112
-        card_spacing = 10
+        self.card_width = 160
+        self.card_height = 224
+        card_spacing = 20
         container_padding = 4 # 최소 패딩
         card_area_width = self.card_width * 2 + card_spacing + container_padding * 2
         card_area_height = self.card_height + container_padding * 2
@@ -602,14 +602,14 @@ class PokerGame(QWidget):
         comm_height = self.community_container.height()
         # 커뮤니티 창을 창의 세로 중앙에 배치
         community_y = (self.height() - comm_height) // 2
-        community_x = center_x - comm_width // 2
+        community_x = center_x - comm_width // 2 - self.card_width - 5
 
         gap_x = 50
-        gap_y = 0  # 커뮤니티 창과 거의 붙임
+        gap_y = 60  # 커뮤니티 창과 거의 붙임
         offset_x = 100
 
-        top_gap_x = 60  # 위쪽 슬롯 간격
-        bottom_gap_x = -20  # 아래쪽 슬롯 간격
+        top_gap_x = 100  # 위쪽 슬롯 간격
+        bottom_gap_x = 16  # 아래쪽 슬롯 간격
         slot_offset_y = 21
         slot_positions = [
             # 위쪽
@@ -685,7 +685,7 @@ class PokerGame(QWidget):
             """)
             name_label.setFont(QFont("Arial", 12))
             name_label.setAlignment(Qt.AlignCenter)
-            name_label.setFixedSize(card_area_width, 30)
+            name_label.setFixedSize(card_area_width-160, 30)
             name_label.move(x, y)
             self.name_labels.append(name_label)
 
@@ -850,14 +850,14 @@ class PokerGame(QWidget):
         comm_height = self.community_container.height()
         # 커뮤니티 창을 창의 세로 중앙에 배치
         community_y = (self.height() - comm_height) // 2
-        community_x = center_x - comm_width // 2
+        community_x = center_x - comm_width // 2 - self.card_width - 5
 
         gap_x = 50
-        gap_y = 0  # 커뮤니티 창과 거의 붙임
+        gap_y = 60  # 커뮤니티 창과 거의 붙임
         offset_x = 100
 
-        top_gap_x = 60  # 위쪽 슬롯 간격
-        bottom_gap_x = -20  # 아래쪽 슬롯 간격
+        top_gap_x = 100  # 위쪽 슬롯 간격
+        bottom_gap_x = 16  # 아래쪽 슬롯 간격
         slot_offset_y = 21
         slot_positions = [
             (community_x - top_gap_x, community_y - card_area_height - gap_y + slot_offset_y),

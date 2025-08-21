@@ -14,14 +14,14 @@ class PlayerCountDialog(QWidget):
         super().__init__()
         # 기본 창 설정
         self.setWindowTitle("플레이어 수 선택")
-        self.setFixedSize(1280, 800)
+        self.setFixedSize(1920, 1080)
         self.setStyleSheet("background-color: black;")
         self.player_count = 2  # 기본 플레이어 수는 2명
 
         # 메인 컨테이너 박스 설정
         self.box = QWidget(self)
         self.box.setStyleSheet("background-color: white; border-radius: 15px;")
-        self.box.setGeometry(440, 210, 400, 300)
+        self.box.setGeometry(760, 390, 400, 300)
 
         # 안내 텍스트 라벨
         self.label = QLabel("플레이어 수를 선택하세요", self.box)
