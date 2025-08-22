@@ -4,7 +4,7 @@
 최적화된 버전: 좌표만 미리 추출하고 필요할 때만 카드 인식
 """
 
-import subprocess, os, cv2
+import cv2
 import numpy as np
 from ultralytics import YOLO
 import time
@@ -28,46 +28,58 @@ def process_card_worker(model_path, warped_image):
         return "Unknown"
 
 class FrameCapture:
-    def __init__(self, path="/tmp/_gst_frame.jpg"):
-        self._path = path
-        # 리스트 형태로 나누면 shell=False 로 안전하게 실행됩니다.
-        self._cmd = [
-            "gst-launch-1.0",
-            "nvarguscamerasrc", "sensor-id=0", "sensor-mode=4", "num-buffers=1",
-            "!",
-            "video/x-raw(memory:NVMM),width=1280,height=720,format=NV12,framerate=30/1",
-            "!",
-            "nvvidconv",
-            "!",
-            "video/x-raw,format=BGRx",
-            "!",
-            "videoconvert",
-            "!",
-            "video/x-raw,format=BGR",
-            "!",
-            "jpegenc",
-            "!",
-            f"filesink", f"location={self._path}", "-e"
-        ]
+    def __init__(self, device_id=0):
+        self.device_id = device_id
+        self.cap = None
+        self._initialize_camera()
+    
+    def _initialize_camera(self):
+        """카메라 초기화 - V4L2 백엔드 사용"""
+        # V4L2 백엔드로 카메라 열기
+        self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_V4L2)
+        
+        if not self.cap.isOpened():
+            # 문자열 경로로 시도
+            device_path = f"/dev/video{self.device_id}"
+            self.cap = cv2.VideoCapture(device_path, cv2.CAP_V4L2)
+            
+            if not self.cap.isOpened():
+                raise RuntimeError(f"웹캠 {self.device_id} 연결 실패")
+        
+        print(f"카메라 {self.device_id} 연결 성공")
+        
+        # 카메라 초기화를 위한 대기
+        import time
+        time.sleep(1)
+        
+        # 웹캠 설정
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        self.cap.set(cv2.CAP_PROP_FPS, 30)
+        
+        # 설정 확인
+        actual_width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        actual_height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        actual_fps = self.cap.get(cv2.CAP_PROP_FPS)
+        
+        print(f"카메라 설정: {actual_width}x{actual_height} @ {actual_fps}fps")
 
     def read(self):
-        # 파일 삭제
-        try: os.remove(self._path)
-        except OSError: pass
-
-        # 리스트 인자로 실행 (shell=False 가 기본)
-        subprocess.run(self._cmd, check=True)
-        img = cv2.imread(self._path)
-        return (False, None) if img is None else (True, img)
+        """프레임 읽기"""
+        ret, frame = self.cap.read()
+        if not ret or frame is None:
+            print("웹캠에서 프레임을 읽을 수 없습니다.")
+            return (False, None)
+        return (True, frame)
 
     def release(self):
-        try: os.remove(self._path)
-        except OSError: pass
+        if self.cap.isOpened():
+            self.cap.release()
 
 class CardDetector:
-    def __init__(self, num_players=5):
+    def __init__(self, num_players=5, device_id=0):
         
-        self.cap = FrameCapture()
+        self.cap = FrameCapture(device_id)
         
         self.model_path = "playingCards.pt"
         self.num_players = num_players
