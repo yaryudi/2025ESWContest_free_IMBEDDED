@@ -72,7 +72,12 @@ class FrameCapture:
         print("카메라 초기화 완료")
 
     def read(self):
-        """프레임 읽기"""
+        """프레임 읽기 - 버퍼를 비우고 최신 프레임 가져오기"""
+        # 카메라 버퍼 비우기 (이전 프레임들 제거)
+        for _ in range(5):
+            self.cap.grab()
+        
+        # 최신 프레임 읽기
         ret, frame = self.cap.read()
         if not ret or frame is None:
             print("웹캠에서 프레임을 읽을 수 없습니다.")
