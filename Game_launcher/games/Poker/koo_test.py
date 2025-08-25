@@ -522,41 +522,7 @@ class CardDetector:
         MIN_RATIO = 0.5
         MAX_RATIO = 1.0
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        
-        # 노이즈 제거를 위한 가우시안 블러 적용
-        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
-        
-        # 대비 향상을 위한 히스토그램 평활화
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        enhanced = clahe.apply(blurred)
-        
-        # 다중 임계값 처리로 흰색 영역을 더 엄격하게 구분
-        # 1. Otsu 알고리즘으로 기본 임계값 계산
-        otsu_threshold, thresh_otsu = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        print(f"Otsu 임계값: {otsu_threshold}")
-        
-        # 2. 더 엄격한 임계값 적용 (Otsu 임계값보다 높게)
-        strict_threshold = min(otsu_threshold + 20, 240)  # Otsu + 20, 최대 240
-        _, thresh_strict = cv2.threshold(enhanced, strict_threshold, 255, cv2.THRESH_BINARY)
-        print(f"엄격한 임계값: {strict_threshold}")
-        
-        # 3. 적응형 임계값도 시도
-        thresh_adaptive = cv2.adaptiveThreshold(enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-        
-        # 4. 세 가지 결과를 조합 (AND 연산으로 더 엄격하게)
-        thresh = cv2.bitwise_and(thresh_otsu, thresh_strict)
-        thresh = cv2.bitwise_and(thresh, thresh_adaptive)
-        
-        # 모폴로지 연산으로 노이즈 제거 및 흰색 영역 정리
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)  # 작은 구멍 메우기
-        thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)   # 작은 노이즈 제거
-        
-        # 디버깅을 위한 중간 결과 저장
-        cv2.imwrite("./assets/test_image/enhanced.jpg", enhanced)
-        cv2.imwrite("./assets/test_image/thresh_otsu.jpg", thresh_otsu)
-        cv2.imwrite("./assets/test_image/thresh_strict.jpg", thresh_strict)
-        cv2.imwrite("./assets/test_image/thresh_adaptive.jpg", thresh_adaptive)
+        _, thresh = cv2.threshold(gray, 110, 255, cv2.THRESH_BINARY)
         cv2.imwrite("./assets/test_image/grayimg.jpg", thresh)
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
