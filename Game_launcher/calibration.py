@@ -13,7 +13,7 @@ import pyautogui
 # ───────────────── 설정 ─────────────────
 # 시리얼 포트/보레이트
 SER_PORT    = '/dev/ttyUSB0'
-BAUDRATE    = 1000000
+BAUDRATE    = 2000000
 
 # 패널 및 MUX 설정
 PANEL_ROWS    = 80

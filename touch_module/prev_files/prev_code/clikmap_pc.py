@@ -11,7 +11,7 @@ plt.rcParams['axes.unicode_minus'] = False
 
 # ─── 설정 ───────────────────────────────────────────────────────────
 PORT            = 'COM15'
-BAUDRATE        = 115200
+BAUDRATE        = 2000000
 NUM_ROWS        = 80            # 80행
 NUM_COLS        = 63            # 63열
 FRAME_SIZE      = NUM_ROWS * NUM_COLS  # 5040 바이트

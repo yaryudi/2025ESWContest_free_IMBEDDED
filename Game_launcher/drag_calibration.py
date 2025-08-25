@@ -12,7 +12,7 @@ import pyautogui
 
 # ───────────────── 설정 ─────────────────
 SER_PORT    = '/dev/ttyUSB0'
-BAUDRATE    = 1000000
+BAUDRATE    = 2000000
 PANEL_ROWS    = 80
 PANEL_COLS    = 63
 FRAME_SIZE    = PANEL_ROWS * PANEL_COLS

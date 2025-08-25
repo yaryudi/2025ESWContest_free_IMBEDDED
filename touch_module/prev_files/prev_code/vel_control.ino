@@ -18,7 +18,7 @@ const int numMuxDevices    = 8;
 const int numCols = 63;  // 실제로 읽을 열 수
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(2000000);
 
   // SPI 설정
   pinMode(latchPin, OUTPUT);
@@ -68,10 +68,10 @@ void loop() {
   // ── 센서값 전송 ──
   for (int row = 0; row < numRows; row++) {
     selectRow(numRows - row - 1);
-    delayMicroseconds(100);    // 안정화 지연
+    delayMicroseconds(10);    // 안정화 지연
     for (int ch = 0; ch < (1 << numMuxBits); ch++) {
       selectMux(ch);
-      delayMicroseconds(100);
+      delayMicroseconds(10);
       for (int dev = 0; dev < numMuxDevices; dev++) {
         int col = dev * 8 + ch;
         if (col >= numCols) continue;
