@@ -1,7 +1,7 @@
 """
 카드 인식 테스트 모듈
-젝슨나노 IMX219 카메라로 이미지를 캡처하고 YOLO 모델을 사용하여 포커 카드를 인식합니다.
-최적화된 버전: 좌표만 미리 추출하고 필요할 때만 카드 인식
+Jetson Nano 웹캠으로 필요할 때만 카메라를 활성화하여 스냅샷을 캡처하고 YOLO 모델을 사용하여 포커 카드를 인식합니다.
+최적화된 버전: 좌표만 미리 추출하고 필요할 때만 카드 인식, 카메라는 필요할 때만 열고 즉시 해제
 """
 
 import cv2
@@ -10,6 +10,8 @@ from ultralytics import YOLO
 import time
 import multiprocessing as mp
 from functools import partial
+import signal
+import sys
 
 def process_card_worker(model_path, warped_image):
     """별도의 프로세스에서 실행될 카드 처리 함수"""
@@ -30,63 +32,90 @@ def process_card_worker(model_path, warped_image):
 class FrameCapture:
     def __init__(self, device_id=0):
         self.device_id = device_id
-        self.cap = None
-        self._initialize_camera()
+        self.cap = None  # 카메라는 필요할 때만 열기
     
-    def _initialize_camera(self):
-        """카메라 초기화 - V4L2 백엔드 사용"""
-        # V4L2 백엔드로 카메라 열기
-        self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_V4L2)
-        
-        if not self.cap.isOpened():
-            # 문자열 경로로 시도
-            device_path = f"/dev/video{self.device_id}"
-            self.cap = cv2.VideoCapture(device_path, cv2.CAP_V4L2)
+    def _open_camera(self):
+        """카메라 열기 - V4L2 백엔드 사용"""
+        try:
+            # V4L2 백엔드로 카메라 열기
+            self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_V4L2)
             
             if not self.cap.isOpened():
-                raise RuntimeError(f"웹캠 {self.device_id} 연결 실패")
-        
-        print(f"카메라 {self.device_id} 연결 성공")
-        
-        # 웹캠 설정 (해상도만 설정, FPS는 제거)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        
-        # 설정 확인
-        actual_width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        actual_height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        
-        print(f"카메라 설정: {actual_width}x{actual_height}")
-        
-        # 카메라 초기화를 위한 대기 및 더미 프레임 읽기
-        import time
-        time.sleep(2)  # 대기 시간 증가
-        
-        # 카메라가 안정화될 때까지 더미 프레임 읽기
-        for _ in range(5):
-            ret, _ = self.cap.read()
-            if ret:
-                break
-            time.sleep(0.1)
-        
-        print("카메라 초기화 완료")
+                # 문자열 경로로 시도
+                device_path = f"/dev/video{self.device_id}"
+                self.cap = cv2.VideoCapture(device_path, cv2.CAP_V4L2)
+                
+                if not self.cap.isOpened():
+                    raise RuntimeError(f"웹캠 {self.device_id} 연결 실패")
+            
+            # 웹캠 설정 (해상도만 설정)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # 버퍼 크기 최소화
+            
+            # 설정 확인
+            actual_width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            actual_height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            
+            print(f"카메라 {self.device_id} 연결 성공: {actual_width}x{actual_height}")
+            return True
+            
+        except Exception as e:
+            print(f"카메라 연결 실패: {e}")
+            if self.cap:
+                self.cap.release()
+                self.cap = None
+            return False
 
     def read(self):
-        """프레임 읽기 - 버퍼를 비우고 최신 프레임 가져오기"""
-        # 카메라 버퍼 비우기 (이전 프레임들 제거)
-        for _ in range(5):
-            self.cap.grab()
-        
-        # 최신 프레임 읽기
-        ret, frame = self.cap.read()
-        if not ret or frame is None:
-            print("웹캠에서 프레임을 읽을 수 없습니다.")
+        """프레임 읽기 - 필요할 때만 카메라를 열어서 스냅샷 촬영"""
+        try:
+            # 카메라 열기
+            if not self._open_camera():
+                return (False, None)
+            
+            # 카메라 초기화를 위한 짧은 대기
+            time.sleep(0.2)
+            
+            # 프레임 읽기
+            ret, frame = self.cap.read()
+            
+            # 카메라 즉시 해제
+            self.cap.release()
+            self.cap = None
+            
+            if not ret or frame is None:
+                print("웹캠에서 프레임을 읽을 수 없습니다.")
+                return (False, None)
+            
+            return (True, frame)
+            
+        except Exception as e:
+            print(f"프레임 읽기 중 오류: {e}")
+            # 오류 발생 시에도 카메라 해제 보장
+            if self.cap:
+                self.cap.release()
+                self.cap = None
             return (False, None)
-        return (True, frame)
 
     def release(self):
-        if self.cap.isOpened():
-            self.cap.release()
+        """카메라가 열려있다면 해제"""
+        if self.cap and self.cap.isOpened():
+            try:
+                self.cap.release()
+                self.cap = None
+                print(f"카메라 {self.device_id} 연결 해제 완료")
+            except Exception as e:
+                print(f"카메라 해제 중 오류: {e}")
+                self.cap = None
+    
+    def is_ready(self):
+        """카메라가 사용 가능한 상태인지 확인 (항상 True 반환)"""
+        return True  # 필요할 때마다 새로 열기 때문에 항상 사용 가능
+    
+    def __del__(self):
+        """소멸자에서도 카메라 해제 보장"""
+        self.release()
 
 class CardDetector:
     def __init__(self, num_players=5, device_id=0):
@@ -141,6 +170,11 @@ class CardDetector:
     def extract_card_coordinates(self):
         """카드 좌표만 추출하여 저장"""
         try:
+            # 카메라 상태 확인
+            if not self.cap.is_ready():
+                print("카메라가 준비되지 않았습니다.")
+                return False
+            
             ret, image = self.cap.read()
             if not ret:
                 print("카메라에서 이미지를 읽을 수 없습니다.")
@@ -192,6 +226,11 @@ class CardDetector:
                 return None
         
         try:
+            # 카메라 상태 확인
+            if not self.cap.is_ready():
+                print("카메라가 준비되지 않았습니다.")
+                return None
+            
             ret, image = self.cap.read()
             if not ret:
                 print("카메라에서 이미지를 읽을 수 없습니다.")
@@ -330,7 +369,7 @@ class CardDetector:
         MIN_RATIO = 0.5
         MAX_RATIO = 1.0
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 220, 255, cv2.THRESH_BINARY)
+        _, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
         cv2.imwrite("./assets/test_image/grayimg.jpg", thresh)
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
@@ -422,9 +461,32 @@ class CardDetector:
 
     def close(self):
         """리소스 정리"""
-        self.cap.release()
-        self.pool.close()
-        self.pool.join()
+        try:
+            # 프로세스 풀 먼저 정리
+            if hasattr(self, 'pool') and self.pool:
+                print("프로세스 풀 정리 중...")
+                self.pool.close()
+                self.pool.join()
+                self.pool = None
+            
+            # 카메라는 이미 닫혀있음 (필요할 때마다 열고 닫기)
+            print("모든 리소스 정리 완료")
+            
+        except Exception as e:
+            print(f"리소스 정리 중 오류: {e}")
+        finally:
+            # 강제로 None 설정
+            self.pool = None
+
+# 전역 변수로 detector 저장 (시그널 핸들러에서 접근)
+global_detector = None
+
+def signal_handler(signum, frame):
+    """시그널 핸들러 - 프로그램 강제 종료 시 리소스 정리"""
+    print(f"\n시그널 {signum}을 받았습니다. 프로그램을 안전하게 종료합니다.")
+    if global_detector:
+        global_detector.close()
+    sys.exit(0)
 
 def main():
     """메인 실행 함수 - 버튼 입력으로 사진 캡처"""
@@ -454,9 +516,14 @@ def main():
             print("올바른 숫자를 입력하세요.")
     
     # 카드 디텍터 초기화
-    detector = CardDetector(num_players=num_players)
-    
+    global global_detector
     try:
+        global_detector = CardDetector(num_players=num_players)
+        
+        # 시그널 핸들러 설정
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        
         while True:
             command = input("\n명령을 입력하세요: ").lower().strip()
             
@@ -465,27 +532,27 @@ def main():
                 break
             elif command == 'c':
                 print("카드 좌표를 추출합니다...")
-                if detector.extract_card_coordinates():
+                if global_detector.extract_card_coordinates():
                     print("카드 좌표 추출 성공!")
                 else:
                     print("카드 좌표 추출 실패!")
             elif command == '1':
                 print("플레이어 1 카드를 인식합니다...")
-                cards = detector.detect_player_cards(1)
+                cards = global_detector.detect_player_cards(1)
                 if cards:
                     print(f"플레이어 1 카드: {cards}")
                 else:
                     print("카드 인식 실패!")
             elif command == '2':
                 print("플레이어 2 카드를 인식합니다...")
-                cards = detector.detect_player_cards(2)
+                cards = global_detector.detect_player_cards(2)
                 if cards:
                     print(f"플레이어 2 카드: {cards}")
                 else:
                     print("카드 인식 실패!")
             elif command == '3':
                 print("플레이어 3 카드를 인식합니다...")
-                cards = detector.detect_player_cards(3)
+                cards = global_detector.detect_player_cards(3)
                 if cards:
                     print(f"플레이어 3 카드: {cards}")
                 else:
@@ -493,7 +560,7 @@ def main():
             elif command == '4':
                 if num_players >= 4:
                     print("플레이어 4 카드를 인식합니다...")
-                    cards = detector.detect_player_cards(4)
+                    cards = global_detector.detect_player_cards(4)
                     if cards:
                         print(f"플레이어 4 카드: {cards}")
                     else:
@@ -503,7 +570,7 @@ def main():
             elif command == '5':
                 if num_players == 5:
                     print("플레이어 5 카드를 인식합니다...")
-                    cards = detector.detect_player_cards(5)
+                    cards = global_detector.detect_player_cards(5)
                     if cards:
                         print(f"플레이어 5 카드: {cards}")
                     else:
@@ -512,28 +579,28 @@ def main():
                     print("플레이어 5는 존재하지 않습니다.")
             elif command == 'f':
                 print("플랍 카드를 인식합니다...")
-                cards = detector.detect_flop_cards()
+                cards = global_detector.detect_flop_cards()
                 if cards:
                     print(f"플랍 카드: {cards}")
                 else:
                     print("카드 인식 실패!")
             elif command == 't':
                 print("턴 카드를 인식합니다...")
-                card = detector.detect_turn_card()
+                card = global_detector.detect_turn_card()
                 if card:
                     print(f"턴 카드: {card}")
                 else:
                     print("카드 인식 실패!")
             elif command == 'r':
                 print("리버 카드를 인식합니다...")
-                card = detector.detect_river_card()
+                card = global_detector.detect_river_card()
                 if card:
                     print(f"리버 카드: {card}")
                 else:
                     print("카드 인식 실패!")
             elif command == 'a':
                 print("모든 플레이어 카드를 인식합니다...")
-                cards = detector.detect_all_player_cards()
+                cards = global_detector.detect_all_player_cards()
                 if cards:
                     print(f"모든 플레이어 카드: {cards}")
                 else:
@@ -543,9 +610,14 @@ def main():
     
     except KeyboardInterrupt:
         print("\n프로그램이 중단되었습니다.")
+    except Exception as e:
+        print(f"\n예상치 못한 오류가 발생했습니다: {e}")
     finally:
-        detector.close()
-        print("리소스가 정리되었습니다.")
+        # 리소스 정리 보장
+        if global_detector:
+            print("\n리소스 정리 중...")
+            global_detector.close()
+        print("프로그램이 안전하게 종료되었습니다.")
 
 if __name__ == "__main__":
     main()
