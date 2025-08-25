@@ -1,7 +1,7 @@
 """
 카드 인식 테스트 모듈
-Jetson Nano 웹캠으로 필요할 때만 카메라를 활성화하여 스냅샷을 캡처하고 YOLO 모델을 사용하여 포커 카드를 인식합니다.
-최적화된 버전: 좌표만 미리 추출하고 필요할 때만 카드 인식, 카메라는 필요할 때만 열고 즉시 해제
+Jetson Nano 웹캠으로 카메라는 켜져있되 프레임을 저장하지 않고 필요할 때만 최신 프레임을 가져와서 YOLO 모델을 사용하여 포커 카드를 인식합니다.
+최적화된 버전: 좌표만 미리 추출하고 필요할 때만 카드 인식, 프레임 저장 없이 최신 프레임만 사용
 """
 
 import cv2
@@ -32,10 +32,11 @@ def process_card_worker(model_path, warped_image):
 class FrameCapture:
     def __init__(self, device_id=0):
         self.device_id = device_id
-        self.cap = None  # 카메라는 필요할 때만 열기
+        self.cap = None
+        self._initialize_camera()
     
-    def _open_camera(self):
-        """카메라 열기 - V4L2 백엔드 사용"""
+    def _initialize_camera(self):
+        """카메라 초기화 - V4L2 백엔드 사용"""
         try:
             # V4L2 백엔드로 카메라 열기
             self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_V4L2)
@@ -49,8 +50,8 @@ class FrameCapture:
                     raise RuntimeError(f"웹캠 {self.device_id} 연결 실패")
             
             # 웹캠 설정 (해상도만 설정)
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 3840)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 2160)
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # 버퍼 크기 최소화
             
             # 설정 확인
@@ -58,64 +59,195 @@ class FrameCapture:
             actual_height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
             
             print(f"카메라 {self.device_id} 연결 성공: {actual_width}x{actual_height}")
-            return True
+            
+            # 카메라 초기화를 위한 짧은 대기
+            time.sleep(0.5)  # 대기 시간 증가 (0.3초 → 0.5초)
+            
+            # 카메라가 실제로 프레임을 제공할 준비가 될 때까지 대기
+            if not self._wait_for_camera_ready(max_attempts=15, delay=0.1):
+                print("경고: 카메라 초기화 중 프레임 읽기 실패, 계속 진행")
+            
+            print("카메라 초기화 완료")
             
         except Exception as e:
-            print(f"카메라 연결 실패: {e}")
+            print(f"카메라 초기화 중 오류: {e}")
             if self.cap:
                 self.cap.release()
                 self.cap = None
-            return False
+            raise
 
     def read(self):
-        """프레임 읽기 - 필요할 때만 카메라를 열어서 스냅샷 촬영"""
+        """프레임 읽기 - 안전하고 안정적인 방식으로 개선"""
+        if not self.cap or not self.cap.isOpened():
+            print("카메라가 열려있지 않습니다.")
+            return (False, None)
+        
         try:
-            # 카메라 열기
-            if not self._open_camera():
+            # 카메라가 실제로 준비되었는지 확인
+            if not self._wait_for_camera_ready():
+                print("카메라가 준비되지 않았습니다.")
                 return (False, None)
             
-            # 카메라 초기화를 위한 짧은 대기
-            time.sleep(0.2)
-            
-            # 프레임 읽기
+            # 최신 프레임 읽기 (버퍼 비우기 없이)
             ret, frame = self.cap.read()
-            
-            # 카메라 즉시 해제
-            self.cap.release()
-            self.cap = None
             
             if not ret or frame is None:
                 print("웹캠에서 프레임을 읽을 수 없습니다.")
+                return (False, None)
+            
+            # 프레임 유효성 검사
+            if frame.size == 0:
+                print("빈 프레임을 받았습니다.")
                 return (False, None)
             
             return (True, frame)
             
         except Exception as e:
             print(f"프레임 읽기 중 오류: {e}")
-            # 오류 발생 시에도 카메라 해제 보장
-            if self.cap:
-                self.cap.release()
-                self.cap = None
             return (False, None)
+    
+    def _wait_for_camera_ready(self, max_attempts=10, delay=0.1):
+        """카메라가 프레임을 제공할 준비가 될 때까지 대기"""
+        for attempt in range(max_attempts):
+            try:
+                # 프레임 읽기 시도 (실제로는 저장하지 않음)
+                ret, frame = self.cap.read()
+                if ret and frame is not None and frame.size > 0:
+                    return True
+                time.sleep(delay)
+            except Exception as e:
+                print(f"카메라 준비 확인 중 오류 (시도 {attempt + 1}): {e}")
+                time.sleep(delay)
+        
+        print(f"카메라 준비 대기 시간 초과 ({max_attempts * delay}초)")
+        return False
+    
+    def diagnose_camera(self):
+        """카메라 상태 진단"""
+        print(f"=== 카메라 {self.device_id} 진단 ===")
+        
+        if not self.cap:
+            print("카메라 객체가 None입니다.")
+            return False
+        
+        if not self.cap.isOpened():
+            print("카메라가 열려있지 않습니다.")
+            return False
+        
+        try:
+            # 카메라 속성 확인
+            width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            fps = self.cap.get(cv2.CAP_PROP_FPS)
+            buffer_size = self.cap.get(cv2.CAP_PROP_BUFFERSIZE)
+            
+            print(f"해상도: {width}x{height}")
+            print(f"FPS: {fps}")
+            print(f"버퍼 크기: {buffer_size}")
+            
+            # 프레임 읽기 테스트
+            print("프레임 읽기 테스트 중...")
+            ret, frame = self.cap.read()
+            if ret and frame is not None:
+                print(f"프레임 읽기 성공: {frame.shape}")
+                return True
+            else:
+                print("프레임 읽기 실패")
+                return False
+                
+        except Exception as e:
+            print(f"카메라 진단 중 오류: {e}")
+            return False
 
     def release(self):
-        """카메라가 열려있다면 해제"""
+        """카메라 해제 - 버퍼 정리 후 해제"""
         if self.cap and self.cap.isOpened():
             try:
+                print(f"카메라 {self.device_id} 해제 중...")
+                
+                # 1단계: 남아있는 프레임 버퍼들을 모두 비우기
+                print("  프레임 버퍼 정리 중...")
+                buffer_count = 0
+                max_buffer_clear = 20  # 최대 20개 프레임까지 버퍼에서 제거
+                
+                for i in range(max_buffer_clear):
+                    try:
+                        # grab()으로 프레임을 메모리에 저장하지 않고 버퍼만 비움
+                        if self.cap.grab():
+                            buffer_count += 1
+                        else:
+                            # 더 이상 읽을 프레임이 없으면 중단
+                            break
+                    except Exception as e:
+                        print(f"    버퍼 정리 중 오류 (프레임 {i+1}): {e}")
+                        break
+                
+                print(f"  {buffer_count}개 프레임 버퍼 정리 완료")
+                
+                # 2단계: 카메라 설정을 원래대로 복원
+                try:
+                    self.cap.set(cv2.CAP_PROP_SETTINGS, 0)
+                    print("  카메라 설정 복원 완료")
+                except Exception as e:
+                    print(f"  카메라 설정 복원 실패: {e}")
+                
+                # 3단계: 카메라 해제
                 self.cap.release()
+                
+                # 4단계: 카메라 객체를 None으로 설정
                 self.cap = None
+                
                 print(f"카메라 {self.device_id} 연결 해제 완료")
+                
             except Exception as e:
                 print(f"카메라 해제 중 오류: {e}")
+                # 오류 발생 시에도 강제로 None 설정
                 self.cap = None
+        else:
+            print(f"카메라 {self.device_id}는 이미 해제되었습니다.")
+    
+    def force_release(self):
+        """강제로 카메라 해제 (상태와 관계없이) - 버퍼 정리 포함"""
+        try:
+            if self.cap:
+                print(f"카메라 {self.device_id} 강제 해제 중...")
+                
+                # 버퍼 정리 시도
+                try:
+                    if self.cap.isOpened():
+                        print("  프레임 버퍼 강제 정리 중...")
+                        for i in range(10):  # 최대 10개 프레임
+                            try:
+                                self.cap.grab()
+                            except:
+                                break
+                        print("  버퍼 정리 완료")
+                except Exception as e:
+                    print(f"  버퍼 정리 중 오류: {e}")
+                
+                # 카메라 해제
+                self.cap.release()
+                self.cap = None
+                print(f"카메라 {self.device_id} 강제 해제 완료")
+        except Exception as e:
+            print(f"카메라 강제 해제 중 오류: {e}")
+            self.cap = None
     
     def is_ready(self):
-        """카메라가 사용 가능한 상태인지 확인 (항상 True 반환)"""
-        return True  # 필요할 때마다 새로 열기 때문에 항상 사용 가능
+        """카메라가 사용 가능한 상태인지 확인"""
+        return self.cap is not None and self.cap.isOpened()
     
     def __del__(self):
         """소멸자에서도 카메라 해제 보장"""
-        self.release()
+        try:
+            if hasattr(self, 'cap') and self.cap:
+                print(f"FrameCapture 소멸자에서 카메라 {self.device_id} 해제")
+                self.force_release()
+        except Exception as e:
+            print(f"소멸자에서 카메라 해제 중 오류: {e}")
+            # 오류 발생 시에도 강제로 None 설정
+            if hasattr(self, 'cap'):
+                self.cap = None
 
 class CardDetector:
     def __init__(self, num_players=5, device_id=0):
@@ -173,6 +305,12 @@ class CardDetector:
             # 카메라 상태 확인
             if not self.cap.is_ready():
                 print("카메라가 준비되지 않았습니다.")
+                return False
+            
+            # 카메라 진단 실행
+            print("카메라 상태 진단 중...")
+            if not self.cap.diagnose_camera():
+                print("카메라 진단 실패")
                 return False
             
             ret, image = self.cap.read()
@@ -369,7 +507,7 @@ class CardDetector:
         MIN_RATIO = 0.5
         MAX_RATIO = 1.0
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+        _, thresh = cv2.threshold(gray, 110, 255, cv2.THRESH_BINARY)
         cv2.imwrite("./assets/test_image/grayimg.jpg", thresh)
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
@@ -460,33 +598,91 @@ class CardDetector:
         return sorted_contours
 
     def close(self):
-        """리소스 정리"""
+        """리소스 정리 (간단한 버전)"""
         try:
-            # 프로세스 풀 먼저 정리
+            print("CardDetector 리소스 정리 중...")
+            
+            # 프로세스 풀 정리
             if hasattr(self, 'pool') and self.pool:
                 print("프로세스 풀 정리 중...")
-                self.pool.close()
-                self.pool.join()
-                self.pool = None
+                try:
+                    self.pool.terminate()
+                    self.pool.join()
+                except Exception as e:
+                    print(f"프로세스 풀 정리 중 오류: {e}")
+                finally:
+                    self.pool = None
             
-            # 카메라는 이미 닫혀있음 (필요할 때마다 열고 닫기)
-            print("모든 리소스 정리 완료")
+            # 카메라는 프로그램 종료 시 자동으로 해제되므로 간단히 처리
+            if hasattr(self, 'cap') and self.cap:
+                print("카메라 연결 해제 중...")
+                try:
+                    self.cap.release()
+                except Exception as e:
+                    print(f"카메라 해제 중 오류: {e}")
+                finally:
+                    self.cap = None
+            
+            print("리소스 정리 완료")
             
         except Exception as e:
             print(f"리소스 정리 중 오류: {e}")
         finally:
             # 강제로 None 설정
             self.pool = None
+            self.cap = None
+            
+            # 가비지 컬렉션 강제 실행
+            import gc
+            gc.collect()
+    
+    def __del__(self):
+        """소멸자에서도 리소스 정리 보장"""
+        try:
+            print("CardDetector 소멸자에서 리소스 정리")
+            self.close()
+        except Exception as e:
+            print(f"소멸자에서 리소스 정리 중 오류: {e}")
+            # 오류 발생 시에도 강제로 None 설정
+            if hasattr(self, 'cap'):
+                self.cap = None
+            if hasattr(self, 'pool'):
+                self.pool = None
 
 # 전역 변수로 detector 저장 (시그널 핸들러에서 접근)
 global_detector = None
 
 def signal_handler(signum, frame):
-    """시그널 핸들러 - 프로그램 강제 종료 시 리소스 정리"""
-    print(f"\n시그널 {signum}을 받았습니다. 프로그램을 안전하게 종료합니다.")
+    """시그널 핸들러 - 프로그램 강제 종료 시 카메라 해제"""
+    print(f"\n시그널 {signum}을 받았습니다. 카메라를 안전하게 해제합니다.")
+    
     if global_detector:
-        global_detector.close()
+        try:
+            print("카메라 연결 해제 중...")
+            global_detector.cap.force_release()
+            print("카메라 연결 해제 완료")
+        except Exception as e:
+            print(f"카메라 해제 중 오류: {e}")
+    
+    print("프로그램을 종료합니다.")
     sys.exit(0)
+
+def cleanup_resources():
+    """리소스 정리 함수"""
+    global global_detector
+    if global_detector:
+        try:
+            print("프로그램 종료 시 리소스 정리 중...")
+            global_detector.close()
+            print("리소스 정리 완료")
+        except Exception as e:
+            print(f"리소스 정리 중 오류: {e}")
+        finally:
+            global_detector = None
+
+# 프로그램 종료 시 자동으로 리소스 정리
+import atexit
+atexit.register(cleanup_resources)
 
 def main():
     """메인 실행 함수 - 버튼 입력으로 사진 캡처"""
@@ -502,6 +698,7 @@ def main():
     print("  't' - 턴 카드 인식")
     print("  'r' - 리버 카드 인식")
     print("  'a' - 모든 플레이어 카드 인식")
+    print("  'd' - 카메라 진단")
     print("  'q' - 종료")
     
     # 플레이어 수 입력 받기
@@ -520,7 +717,7 @@ def main():
     try:
         global_detector = CardDetector(num_players=num_players)
         
-        # 시그널 핸들러 설정
+        # 시그널 핸들러 설정 (프로그램 강제 종료 시 카메라 해제)
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
         
@@ -530,6 +727,12 @@ def main():
             if command == 'q':
                 print("프로그램을 종료합니다.")
                 break
+            elif command == 'd':
+                print("카메라 진단을 실행합니다...")
+                if global_detector.cap.diagnose_camera():
+                    print("카메라 진단 성공")
+                else:
+                    print("카메라 진단 실패")
             elif command == 'c':
                 print("카드 좌표를 추출합니다...")
                 if global_detector.extract_card_coordinates():
@@ -613,11 +816,10 @@ def main():
     except Exception as e:
         print(f"\n예상치 못한 오류가 발생했습니다: {e}")
     finally:
-        # 리소스 정리 보장
+        # 간단한 정리 (프로그램 종료 시 자동으로 처리됨)
         if global_detector:
-            print("\n리소스 정리 중...")
-            global_detector.close()
-        print("프로그램이 안전하게 종료되었습니다.")
+            print("프로그램을 종료합니다.")
+        print("프로그램이 종료되었습니다.")
 
 if __name__ == "__main__":
     main()

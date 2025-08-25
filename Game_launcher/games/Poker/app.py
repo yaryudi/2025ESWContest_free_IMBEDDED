@@ -5,6 +5,7 @@
 
 import sys
 from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import Qt
 from player_count_dialog import PlayerCountDialog
 
 if __name__ == '__main__':
@@ -14,6 +15,10 @@ if __name__ == '__main__':
     # PlayerCountDialog를 사용하여 플레이어 수 입력 받기
     dialog = PlayerCountDialog()
     dialog.show()
+    
+    # 다이얼로그에 초점 설정
+    dialog.setFocus()
+    dialog.activateWindow()
     
     # 애플리케이션 이벤트 루프 시작
     sys.exit(app.exec_())

@@ -4,7 +4,7 @@
 """
 
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QKeyEvent
 from PyQt5.QtCore import Qt
 from poker_game import PokerGame
 
@@ -58,7 +58,28 @@ class PlayerCountDialog(QWidget):
         self.start_button.setStyleSheet("QPushButton { background-color: #d9534f; color: white; border-radius: 30px; } QPushButton:hover { background-color: #c9302c; }")
         self.start_button.move(100, 230)
         self.start_button.clicked.connect(self.accept)
+        
+        # 초점 설정
+        self.setFocus()
+        self.activateWindow()
+        
+        # 기본적으로 게임 시작 버튼에 초점 설정
+        self.start_button.setFocus()
+        
         self.showFullScreen()
+
+    def keyPressEvent(self, event: QKeyEvent):
+        """키보드 이벤트 처리"""
+        if event.key() == Qt.Key_Up:
+            self.increment()
+        elif event.key() == Qt.Key_Down:
+            self.decrement()
+        elif event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
+            self.accept()
+        elif event.key() == Qt.Key_Escape:
+            self.close()
+        else:
+            super().keyPressEvent(event)
 
     def increment(self):
         """플레이어 수를 1 증가시킵니다. 최대 5명까지 가능합니다."""

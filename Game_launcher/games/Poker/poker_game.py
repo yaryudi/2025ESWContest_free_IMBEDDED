@@ -5,6 +5,7 @@
 
 import random
 import math
+import sys
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QInputDialog, QSpinBox, QVBoxLayout, QHBoxLayout, QDialog, QGraphicsDropShadowEffect, QGraphicsScene, QGraphicsView, QGraphicsProxyWidget, QApplication, QMessageBox
 from PyQt5.QtGui import QFont, QColor, QTransform, QPainter, QPixmap, QImage
 from PyQt5.QtCore import Qt, QTimer, QPoint
@@ -2286,7 +2287,18 @@ class PokerGame(QWidget):
         # 커스텀 게임 종료 다이얼로그
         dialog = GameExitDialog(self)
         if dialog.exec_() == QDialog.Accepted:
-            # 카드 디텍터 리소스 정리
-            if hasattr(self, 'card_detector'):
-                self.card_detector.close()
-            self.close()
+            # 프로그램 완전 종료
+            print("게임을 종료합니다.")
+            sys.exit(0)
+    
+    def closeEvent(self, event):
+        """창이 닫힐 때 호출되는 이벤트"""
+        try:
+            print("게임 종료 시 프로그램을 완전히 종료합니다.")
+            # 프로그램 완전 종료
+            sys.exit(0)
+            
+        except Exception as e:
+            print(f"게임 종료 중 오류: {e}")
+            # 오류 발생 시에도 강제 종료
+            sys.exit(1)

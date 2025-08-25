@@ -1,0 +1,16 @@
+#!/bin/bash
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+export XKL_XMODMAP_DISABLE=1
+
+# Start window manager
+if [ -x /usr/bin/startxfce4 ]; then
+    exec startxfce4
+elif [ -x /usr/bin/gnome-session ]; then
+    exec gnome-session
+elif [ -x /usr/bin/startlxde ]; then
+    exec startlxde
+else
+    xterm -geometry 80x24+10+10 -ls -title "$VNCDESKTOP Desktop" &
+    twm &
+fi
