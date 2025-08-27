@@ -18,7 +18,7 @@ from touch_manager import TouchManager, TouchState, TouchEvent
 SER_PORT    = '/dev/ttyUSB0'
 BAUDRATE    = 2000000
 PANEL_ROWS    = 80
-PANEL_COLS    = 63
+PANEL_COLS    = 64
 FRAME_SIZE    = PANEL_ROWS * PANEL_COLS
 MUX_CHANNELS  = 8
 DEVICES       = 8

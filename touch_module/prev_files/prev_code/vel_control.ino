@@ -15,7 +15,7 @@ const int numMuxBits       = 3;
 const int muxAnalogPins[8] = {A0, A1, A2, A3, A4, A5, A6, A7};
 const int numMuxDevices    = 8;
 
-const int numCols = 63;  // 실제로 읽을 열 수
+const int numCols = 64;  // 실제로 읽을 열 수
 
 void setup() {
   Serial.begin(2000000);
