@@ -15,17 +15,14 @@ import pyautogui
 from touch_manager import TouchManager, TouchState, TouchEvent
 
 # ───────────────── 설정 ─────────────────
-SER_PORT    = 'COM15'#'/dev/ttyUSB0'
+SER_PORT    = '/dev/ttyUSB0'
 BAUDRATE    = 2000000
-PANEL_ROWS  = 80
-PANEL_COLS  = 64
-FRAME_SIZE  = PANEL_ROWS * PANEL_COLS
+PANEL_ROWS    = 80
+PANEL_COLS    = 64
+FRAME_SIZE    = PANEL_ROWS * PANEL_COLS
 MUX_CHANNELS  = 8
 DEVICES       = 8
-
-# 기본 임계값(최저 보정치). 프레임별 동적 임계값이 이 값보다 낮아지지 않게 하는 하한선.
-TOUCH_THRESHOLD_MIN = 8
-
+TOUCH_THRESHOLD = 15   # 극한 민감한 터치 감지를 위해 임계값 더 낮춤
 SYNC_HDR = b'\xAA\x55'
 
 pyautogui.FAILSAFE = False
@@ -75,98 +72,6 @@ def read_one_frame(ser):
                 rev_col = PANEL_COLS - 1 - col
                 frame[row, rev_col] = val
     return frame
-
-# ───────────────── 평균값 보정(러닝 베이스라인) 유틸 ─────────────────
-class RunningBaseline:
-    """
-    - 초기: N프레임 평균으로 베이스라인 시작
-    - 이후: 터치가 아닌 픽셀만 선택(마스크)하여 EMA(알파)로 업데이트
-    - subtract_and_update(frame) -> (corrected, used_mask, dyn_threshold)
-    """
-    def __init__(self, shape, init_mean=None, alpha=0.02, clip_min=0.0, clip_max=255.0):
-        self.shape = shape
-        self.alpha = float(alpha)
-        self.clip_min = clip_min
-        self.clip_max = clip_max
-
-        if init_mean is None:
-            self.baseline = np.zeros(shape, dtype=np.float32)
-        else:
-            self.baseline = init_mean.astype(np.float32)
-
-        # 시간적 스무딩용 버퍼
-        self.prev_corrected = np.zeros(shape, dtype=np.float32)
-
-        # 노이즈 추정을 위한 단순 EMA(절대값)
-        self.noise_ema = 1.0  # 전역적(스칼라) 노이즈 지표
-
-    @staticmethod
-    def robust_stats(arr):
-        """
-        중앙값과 MAD(중앙절대편차)의 간단한 근사.
-        MAD를 ~1.4826 배하면 정규분포 std 근사.
-        """
-        med = np.median(arr)
-        mad = np.median(np.abs(arr - med))
-        robust_std = 1.4826 * mad
-        return med, robust_std
-
-    def _provisional_touch_mask(self, corrected, base_thresh):
-        """
-        베이스라인 업데이트에서 제외할 터치 후보 마스크.
-        corrected가 base_thresh보다 큰 곳을 터치 후보로 간주.
-        """
-        return corrected > base_thresh
-
-    def subtract_and_update(self, frame_u8, app_state, last_event_state):
-        """
-        1) baseline을 뺀 corrected 계산
-        2) 터치 후보 마스크 산출(보수적 임계)
-        3) 터치가 없거나 약할 때만 baseline EMA 업데이트
-        4) corrected에 시간적 스무딩 적용
-        5) 프레임별 동적 임계값(dyn_thr) 산출
-        """
-        f = frame_u8.astype(np.float32)
-        corrected = f - self.baseline
-        corrected = np.clip(corrected, self.clip_min, self.clip_max)
-
-        # 터치 보호용 임시 임계값(보수적으로 높게): 중앙값+3*MAD
-        med, robust_std = self.robust_stats(corrected)
-        provisional_thr = med + 3.0 * max(robust_std, 1.0)
-
-        touch_mask = self._provisional_touch_mask(corrected, provisional_thr)
-
-        # 앱이 제어모드이고 실제 드래그/터치가 진행 중일 때는 업데이트 억제 강하게
-        is_touching_now = False
-        if last_event_state in (TouchState.TOUCHING, TouchState.DRAGGING):
-            is_touching_now = True
-
-        # 베이스라인 업데이트: 터치 후보가 아닌 픽셀만 EMA
-        # 캘리브레이션/대기 상태에서도 터치 없으면 업데이트
-        if not is_touching_now:
-            not_touch_mask = ~touch_mask
-            # EMA: baseline = (1-alpha)*baseline + alpha*frame
-            self.baseline[not_touch_mask] = (
-                (1.0 - self.alpha) * self.baseline[not_touch_mask] +
-                self.alpha * f[not_touch_mask]
-            )
-
-        # 시간적 스무딩(간단한 EMA)
-        beta = 0.5  # 0~1 (높을수록 현재 프레임 반영 큼)
-        smoothed = beta * corrected + (1.0 - beta) * self.prev_corrected
-        self.prev_corrected = smoothed
-
-        # 전역 노이즈 지표 업데이트(EMA of abs)
-        frame_noise = float(np.median(np.abs(smoothed - np.median(smoothed))))
-        self.noise_ema = 0.9 * self.noise_ema + 0.1 * max(frame_noise, 1.0)
-
-        # 프레임별 동적 임계값: 중앙값 + k * MAD  (최소 하한 유지)
-        med2, robust_std2 = self.robust_stats(smoothed)
-        dyn_thr = int(max(TOUCH_THRESHOLD_MIN, med2 + 3.0 * max(robust_std2, 1.0)))
-
-        # 최종 출력은 uint8 범위로 클립
-        smoothed_u8 = np.clip(smoothed, 0, 255).astype(np.uint8)
-        return smoothed_u8, touch_mask, dyn_thr
 
 # ───────────────── 위젯 ─────────────────
 class CalibrationPoint(QFrame):
@@ -259,32 +164,32 @@ class ImprovedCalibrationGUI(QMainWindow):
         self.app_state = 'initializing'  # 'initializing', 'waiting_start', 'calibrating', 'controlling'
 
         self.ser = None
+        self.offset = None
         self.reader_thread = None
 
-        # 러닝 베이스라인(평균값 보정) 모듈
-        self.baseline = None
-
-        # 최근 이벤트 상태(터치매니저가 가진 enum 활용)
-        self.last_event_state = None
+        # 마지막 보정 프레임 및 정밀 터치 포인트 보관
+        self.latest_corr = None
+        self.latest_refined = None  # (r, c) float
 
         # 새로운 터치 매니저 초기화 (캘리브레이션용 설정)
         self.touch_manager = TouchManager(
-            drag_threshold=1,       # 매우 민감
-            touch_timeout=0.02,     # 빠른 반응
-            min_drag_distance=2,    # 민감
-            max_touch_points=1
+            drag_threshold=1,       # 드래그 시작 임계값 (센서 단위) - 매우 민감하게 설정
+            touch_timeout=0.02,     # 터치 타임아웃 (초) - 극한 빠른 반응
+            min_drag_distance=2,    # 최소 드래그 거리 - 극한 민감하게 설정
+            max_touch_points=1      # 최대 터치 포인트 수
         )
-        # 히스토리도 작게(빠른 반응)
+
+        # 터치 히스토리 크기 극한 감소 (극한 반응 속도를 위해)
         self.touch_manager.max_history_size = 3
 
-        # 콜백 등록
+        # 터치 매니저 콜백 설정
         self.touch_manager.on_touch_start = self.on_touch_start
-        self.touch_manager.on_touch_move  = self.on_touch_move
-        self.touch_manager.on_touch_end   = self.on_touch_end
-        self.touch_manager.on_drag_start  = self.on_drag_start
-        self.touch_manager.on_drag_move   = self.on_drag_move
-        self.touch_manager.on_drag_end    = self.on_drag_end
-        self.touch_manager.on_click       = self.on_click
+        self.touch_manager.on_touch_move = self.on_touch_move
+        self.touch_manager.on_touch_end = self.on_touch_end
+        self.touch_manager.on_drag_start = self.on_drag_start
+        self.touch_manager.on_drag_move = self.on_drag_move
+        self.touch_manager.on_drag_end = self.on_drag_end
+        self.touch_manager.on_click = self.on_click
 
         self.current_step = 0
         self.calibration_data = {
@@ -298,6 +203,58 @@ class ImprovedCalibrationGUI(QMainWindow):
 
         self.init_ui()
 
+    # ───────────────── 정밀 좌표 계산 ─────────────────
+    def refine_touch_point(self, approx_point, window=3, baseline_subtract=True):
+        """인근 평균(가중 중심)으로 터치 지점을 보간해 서브픽셀 정밀도로 반환.
+        approx_point: 이벤트에서 제공한 대략 좌표(객체 또는 (r,c) 튜플)
+        window: 홀수 크기. 3이면 3x3, 5이면 5x5 윈도우 사용
+        baseline_subtract: 로컬 최소값을 빼서 대비를 높임
+        반환: (r, c) float
+        """
+        if self.latest_corr is None:
+            # 프레임이 아직 없다면 원본을 그대로 반환
+            if hasattr(approx_point, 'y'):
+                return float(approx_point.y), float(approx_point.x)
+            return float(approx_point[0]), float(approx_point[1])
+
+        if hasattr(approx_point, 'y'):
+            r0, c0 = int(round(approx_point.y)), int(round(approx_point.x))
+        else:
+            r0, c0 = int(round(approx_point[0])), int(round(approx_point[1]))
+
+        h = window // 2
+        r1, r2 = max(0, r0 - h), min(self.latest_corr.shape[0] - 1, r0 + h)
+        c1, c2 = max(0, c0 - h), min(self.latest_corr.shape[1] - 1, c0 + h)
+        patch = self.latest_corr[r1:r2+1, c1:c2+1].astype(np.float32)
+
+        if patch.size == 0:
+            return float(r0), float(c0)
+
+        # 로컬 베이스라인 제거 (선택)
+        if baseline_subtract:
+            patch = patch - patch.min()
+
+        wsum = patch.sum()
+        if wsum <= 1e-6:
+            return float(r0), float(c0)
+
+        # 가중 중심(centroid)
+        rs = np.arange(r1, r2+1, dtype=np.float32)[:, None]
+        cs = np.arange(c1, c2+1, dtype=np.float32)[None, :]
+        r_ref = float((patch * rs).sum() / wsum)
+        c_ref = float((patch * cs).sum() / wsum)
+
+        # 화면 경계 보호
+        r_ref = float(np.clip(r_ref, 0, self.NUM_ROWS - 1))
+        c_ref = float(np.clip(c_ref, 0, self.NUM_COLS - 1))
+        return r_ref, c_ref
+
+    def refined_or_original(self, point):
+        """가능하면 정밀화된 포인트를, 아니면 원본을 반환((r,c) float)."""
+        r, c = self.refine_touch_point(point)
+        self.latest_refined = (r, c)
+        return (r, c)
+
     def init_ui(self):
         self.setWindowTitle('개선된 터치패드 캘리브레이션')
         self.setWindowState(Qt.WindowFullScreen)
@@ -309,7 +266,7 @@ class ImprovedCalibrationGUI(QMainWindow):
         main.setSpacing(20)
         main.setContentsMargins(20, 20, 20, 20)
 
-        title = QLabel('개선된 터치패드 캘리브레이션 (드래그 지원 + 평균값 보정)')
+        title = QLabel('개선된 터치패드 캘리브레이션 (드래그 지원 + 인근 평균 보간)')
         f = QFont(); f.setPointSize(18); f.setBold(True)
         title.setFont(f); title.setAlignment(Qt.AlignCenter)
         main.addWidget(title)
@@ -319,7 +276,7 @@ class ImprovedCalibrationGUI(QMainWindow):
         self.status_label.setStyleSheet("QLabel { font-size:14px; color:#333; padding:10px; background:#e8f4fd; border-radius:5px; }")
         main.addWidget(self.status_label)
 
-        # 터치 상태 표시 라벨
+        # 터치 상태 표시 라벨 추가
         self.touch_status_label = QLabel('터치 상태: 대기 중')
         self.touch_status_label.setAlignment(Qt.AlignCenter)
         self.touch_status_label.setStyleSheet("QLabel { font-size:12px; color:#666; padding:5px; }")
@@ -360,23 +317,15 @@ class ImprovedCalibrationGUI(QMainWindow):
 
         QTimer.singleShot(100, self.setup_serial_and_reader)
 
-    # ─────────── 시리얼/오프셋 초기화 ───────────
     def setup_serial_and_reader(self):
         try:
             self.ser = serial.Serial(SER_PORT, BAUDRATE, timeout=1)
-            self.status_label.setText('오프셋(초기 평균) 측정 중... 패널을 만지지 마세요.')
+            self.status_label.setText('오프셋 측정 중... 패널을 만지지 마세요.')
             QApplication.processEvents()
 
-            init_mean = self.calibrate_offset(num_frames=12)
-            if init_mean is None:
+            self.offset = self.calibrate_offset()
+            if self.offset is None:
                 raise ConnectionError("오프셋 측정 실패")
-
-            # 러닝 베이스라인 초기화 (초기 평균으로 시작)
-            self.baseline = RunningBaseline(
-                shape=(PANEL_ROWS, PANEL_COLS),
-                init_mean=init_mean,
-                alpha=0.02  # 업데이트 속도 (환경에 맞춰 0.01~0.05 조절)
-            )
 
             self.reader_thread = SerialReaderThread(self.ser)
             self.reader_thread.frame_received.connect(self.handle_frame)
@@ -413,8 +362,7 @@ class ImprovedCalibrationGUI(QMainWindow):
         self.progress_bar.setValue(0)
         self.start_current_step()
 
-    def calibrate_offset(self, num_frames=12):
-        """초기 평균(오프셋) 산출"""
+    def calibrate_offset(self, num_frames=10):
         frames = []
         self.ser.reset_input_buffer()
         while len(frames) < num_frames:
@@ -427,30 +375,28 @@ class ImprovedCalibrationGUI(QMainWindow):
                 return None
         return np.mean(frames, axis=0).astype(np.float32)
 
-    # ─────────── 프레임 처리(평균값 보정 + 적응 임계) ───────────
     def handle_frame(self, frame):
-        if self.baseline is None:
+        """새로운 터치 매니저를 사용한 프레임 처리"""
+        if self.offset is None:
             return
 
-        # 평균값 보정 + 시간 스무딩 + 프레임별 동적 임계값
-        # last_event_state는 직전 이벤트 상태(터치/드래그 중이면 baseline 업데이트 보수적으로)
-        corrected, touch_mask, dyn_thr = self.baseline.subtract_and_update(
-            frame_u8=frame,
-            app_state=self.app_state,
-            last_event_state=self.last_event_state
-        )
+        # 프레임 전처리
+        corr = frame.astype(np.float32) - self.offset
+        corr = np.clip(corr, 0, 255).astype(np.uint8)
+        self.latest_corr = corr  # 정밀 보간용으로 저장
 
-        # 디버깅 출력(필요시 주석)
-        # if corrected.max() > 20:
-        #     print(f"DEBUG: 보정 후 최대값: {corrected.max()}, 동적임계: {dyn_thr}")
+        # 최대 압력값 확인 (노이즈 디버깅)
+        max_pressure = corr.max()
+        if max_pressure > 20:  # 임계값 이상일 때만 출력
+            print(f"DEBUG: 프레임 최대 압력: {max_pressure}")
 
-        # 터치 매니저로 보정 프레임 전달(동적 임계값 사용)
-        touch_event = self.touch_manager.process_frame(corrected, dyn_thr)
+        # 터치 매니저로 프레임 처리
+        touch_event = self.touch_manager.process_frame(corr, TOUCH_THRESHOLD)
+
         if touch_event:
-            self.last_event_state = touch_event.state
+            # 콜백에서 사용할 수 있도록 방금 계산한 정밀 포인트 선계산
+            self.latest_refined = self.refined_or_original(touch_event.current_point)
             self.update_touch_status(touch_event)
-        else:
-            self.last_event_state = None
 
     def update_touch_status(self, event: TouchEvent):
         """터치 상태 표시 업데이트"""
@@ -459,77 +405,131 @@ class ImprovedCalibrationGUI(QMainWindow):
             status_text += f" (거리: {event.drag_distance:.1f})"
         if event.duration > 0:
             status_text += f" (시간: {event.duration:.2f}s)"
+
+        # 정밀 좌표 표시(선택)
+        if self.latest_refined is not None:
+            rr, cc = self.latest_refined
+            status_text += f" | 정밀좌표: ({rr:.2f}, {cc:.2f})"
+
         self.touch_status_label.setText(status_text)
 
     def control_mouse(self, touch_point, click_action=None):
-        """터치 좌표를 스크린 좌표로 변환하여 마우스 제어"""
+        """터치 좌표를 스크린 좌표로 변환하여 마우스 제어
+        touch_point: TouchEvent의 current_point 또는 (r,c) 튜플
+        """
         if self.calibration_data['matrix'] is None:
             return
 
-        r, c = touch_point.y, touch_point.x
+        # 정밀화
+        r, c = self.refined_or_original(touch_point)
         x_mat, y_mat = self.calibration_data['matrix']
+
+        # 캘리브레이션 매트릭스를 사용하여 좌표 변환 (주의: 기존 코드의 x,y 축 정의 유지)
         x = int(np.polyval(x_mat, r))
         y = int(np.polyval(y_mat, c))
+
+        # 화면 범위 내로 제한
         x = int(np.clip(x, 0, self.SCREEN_W - 1))
         y = int(np.clip(y, 0, self.SCREEN_H - 1))
+
+        print(f"DEBUG: 마우스 제어 - 터치(정밀): ({r:.2f}, {c:.2f}) → 스크린: ({x}, {y}) - 액션: {click_action}")
 
         try:
             import pyautogui
             pyautogui.moveTo(x, y)
+
+            # 클릭 액션 처리
             if click_action == 'click':
                 pyautogui.click(x, y)
+                print(f"DEBUG: 클릭 실행 - ({x}, {y})")
             elif click_action == 'mousedown':
                 pyautogui.mouseDown(x, y)
+                print(f"DEBUG: 마우스 다운 - ({x}, {y})")
             elif click_action == 'mouseup':
                 pyautogui.mouseUp(x, y)
+                print(f"DEBUG: 마우스 업 - ({x}, {y})")
+
         except Exception as e:
             print(f"DEBUG: 마우스 제어 실패: {e}")
 
     # ── 터치 매니저 콜백 함수들 ──
     def on_touch_start(self, event: TouchEvent):
+        """터치 시작 콜백"""
+        print(f"DEBUG: 터치 시작 - 상태: {self.app_state}, 단계: {self.current_step}")
         if self.app_state == 'waiting_start':
             self.reset_wait_period()
             return
 
         if self.app_state == 'calibrating' and 1 <= self.current_step <= 4:
+            print(f"DEBUG: 캘리브레이션 터치 감지 - 단계 {self.current_step}")
             self.touch_timer.stop()
             self.touch_timer.start(5000)
             self.countdown = 5
             self.timer.start(1000)
-            msgs = {1:'좌측 상단', 2:'우측 상단', 3:'좌측 하단', 4:'우측 하단'}
+            msgs = {
+                1: '좌측 상단', 2: '우측 상단',
+                3: '좌측 하단', 4: '우측 하단'
+            }
             self.status_label.setText(f"{msgs[self.current_step]} 터치 감지됨 - 5초 후 기록됩니다.")
         elif self.app_state == 'controlling':
+            # 마우스 제어 모드에서는 터치 시작 시 마우스 이동 + 클릭
+            print(f"DEBUG: 마우스 제어 모드 - 터치 시작")
             self.control_mouse(event.current_point, 'click')
 
     def on_touch_move(self, event: TouchEvent):
+        """터치 이동 콜백"""
+        print(f"DEBUG: 터치 이동 - 거리: {event.drag_distance:.1f}")
         if self.app_state == 'controlling':
+            print(f"DEBUG: 마우스 제어 모드 - 터치 이동")
             self.control_mouse(event.current_point)
+        pass  # 캘리브레이션에서는 이동 무시
 
     def on_touch_end(self, event: TouchEvent):
-        pass
+        """터치 종료 콜백"""
+        print(f"DEBUG: 터치 종료 - 지속시간: {event.duration:.2f}s, 거리: {event.drag_distance:.1f}")
+        pass  # 클릭 이벤트에서 처리
 
     def on_drag_start(self, event: TouchEvent):
+        """드래그 시작 콜백"""
+        print(f"DEBUG: 드래그 시작 - 거리: {event.drag_distance:.1f}, 임계값: {self.touch_manager.drag_threshold}")
         self.status_label.setText("드래그 감지됨! 터치를 유지해주세요.")
         if self.app_state == 'controlling':
+            print(f"DEBUG: 마우스 제어 모드 - 드래그 시작 (마우스 다운)")
             self.control_mouse(event.current_point, 'mousedown')
 
     def on_drag_move(self, event: TouchEvent):
+        """드래그 이동 콜백"""
+        print(f"DEBUG: 드래그 이동 - 거리: {event.drag_distance:.1f}")
         if self.app_state == 'controlling':
+            print(f"DEBUG: 마우스 제어 모드 - 드래그 이동")
             self.control_mouse(event.current_point)
+        pass
 
     def on_drag_end(self, event: TouchEvent):
+        """드래그 종료 콜백"""
+        print(f"DEBUG: 드래그 종료 - 총 거리: {event.drag_distance:.1f}")
         self.status_label.setText("드래그 종료. 다시 터치해주세요.")
         if self.app_state == 'controlling':
+            print(f"DEBUG: 마우스 제어 모드 - 드래그 종료 (마우스 업)")
             self.control_mouse(event.current_point, 'mouseup')
 
     def on_click(self, event: TouchEvent):
+        """클릭 콜백 - 캘리브레이션에서 사용"""
+        print(f"DEBUG: 클릭 감지! - 상태: {self.app_state}, 단계: {self.current_step}")
         if self.app_state == 'calibrating' and 1 <= self.current_step <= 4:
+            print(f"DEBUG: 캘리브레이션 클릭 처리 - 단계 {self.current_step}")
+
+            # 모든 타이머 중지
             self.timer.stop()
             self.touch_timer.stop()
+
             self.timer_label.setText('기록 완료')
             self.status_label.setText('터치가 기록되었습니다. 다음 단계로 진행합니다.')
 
-            r, c = event.current_point.y, event.current_point.x
+            # 터치 좌표(정밀 보간) 사용
+            r, c = self.refined_or_original(event.current_point)
+            print(f"DEBUG: 터치 좌표(정밀) - 센서: ({r:.2f}, {c:.2f})")
+
             corners = {
                 1: (0, 0),
                 2: (self.SCREEN_W - 1, 0),
@@ -543,15 +543,21 @@ class ImprovedCalibrationGUI(QMainWindow):
             pts[self.current_step - 1].is_completed = True
             pts[self.current_step - 1].update()
 
+            print(f"DEBUG: 다음 단계로 진행 예정 - 현재 단계: {self.current_step}")
             QTimer.singleShot(500, self.start_next_step)
+        else:
+            print(f"DEBUG: 클릭 무시 - 상태: {self.app_state}, 단계: {self.current_step}")
 
     def on_touch_timeout(self):
+        """터치 타임아웃 처리"""
         self.timer.stop()
         self.timer_label.setText('시간 초과')
         self.status_label.setText('터치가 없어 같은 단계를 다시 시작합니다.')
         QTimer.singleShot(800, self.start_current_step)
 
     def start_current_step(self):
+        print(f"DEBUG: start_current_step 호출됨 - 단계: {self.current_step}")
+
         for p in (self.top_left, self.top_right, self.bottom_left, self.bottom_right):
             p.is_active = False
             p.update()
@@ -560,21 +566,29 @@ class ImprovedCalibrationGUI(QMainWindow):
             1: '좌측 상단을 클릭해주세요', 2: '우측 상단을 클릭해주세요',
             3: '좌측 하단을 클릭해주세요', 4: '우측 하단을 클릭해주세요'
         }
-        widgets = {1:self.top_left, 2:self.top_right, 3:self.bottom_left, 4:self.bottom_right}
+        widgets = {
+            1: self.top_left, 2: self.top_right,
+            3: self.bottom_left, 4: self.bottom_right
+        }
 
         if self.current_step in messages:
+            print(f"DEBUG: 단계 {self.current_step} 시작 - {messages[self.current_step]}")
             self.status_label.setText(messages[self.current_step])
             widgets[self.current_step].is_active = True
             widgets[self.current_step].update()
+
             self.countdown = 5
             self.timer_label.setText(f'{self.countdown}초')
             self.timer.start(1000)
             self.touch_timer.start(5000)
         else:
+            print(f"DEBUG: 모든 단계 완료 - 캘리브레이션 종료")
             self.finish_calibration()
 
     def start_next_step(self):
+        print(f"DEBUG: start_next_step 호출됨 - 현재 단계: {self.current_step}")
         self.current_step += 1
+        print(f"DEBUG: 단계 증가됨 - 새로운 단계: {self.current_step}")
         self.progress_bar.setValue(min(self.current_step-1, 4))
         self.start_current_step()
 
@@ -590,16 +604,19 @@ class ImprovedCalibrationGUI(QMainWindow):
             self.timer_label.setText('완료')
             self.progress_bar.setValue(4)
 
+            # 캘리브레이션 완료 신호 파일 생성
             try:
                 with open('.calibration_complete', 'w') as f:
                     f.write('calibration_complete')
+                print("DEBUG: 캘리브레이션 완료 신호 파일 생성됨")
             except Exception as e:
                 print(f"DEBUG: 신호 파일 생성 실패: {e}")
 
             self.app_state = 'controlling'
+
             QTimer.singleShot(3000, self.minimize_window)
         else:
-            self.status_label.setText('캘리브レー션 실패. 다시 시도해주세요.')
+            self.status_label.setText('캘리브레이션 실패. 다시 시도해주세요.')
 
         self.start_button.setEnabled(True)
         self.start_button.setText('다시 시작')
