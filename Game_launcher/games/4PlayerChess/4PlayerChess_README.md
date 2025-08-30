@@ -1,16 +1,16 @@
  # ♟️ 4인 체스 (4-Player Chess)
 
-**라즈베리파이 터치패드 최적화 4인 체스 게임**
+**젯슨나노 터치패드 최적화 4인 체스 게임**
 
-[![License](https://img.shields.io/badge/license-GPL%20v3.0-blue.svg)](COPYING.md)  [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)  [![PyQt5](https://img.shields.io/badge/framework-PyQt5-green.svg)](https://riverbankcomputing.com/software/pyqt/)  [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-red.svg)](https://raspberrypi.org)
+[![License](https://img.shields.io/badge/license-GPL%20v3.0-blue.svg)](COPYING.md)  [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)  [![PyQt5](https://img.shields.io/badge/framework-PyQt5-green.svg)](https://riverbankcomputing.com/software/pyqt/)  [![Platform](https://img.shields.io/badge/platform-Jetson%20Nano-orange.svg)](https://developer.nvidia.com/embedded/jetson-nano)
 
 ## 📋 프로젝트 개요
 
-**이 프로젝트**는 기존 4인 체스 게임을 라즈베리파이 터치패드 환경에 최적화하여 수정한 버전입니다. 터치 인터페이스에 맞춰 UI를 개선하고, 게임 종료 및 카운터 기능을 추가하여 사용자 경험을 향상시켰습니다.
+**이 프로젝트**는 기존 4인 체스 게임을 젯슨나노 터치패드 환경에 최적화하여 수정한 버전입니다. 터치 인터페이스에 맞춰 UI를 개선하고, 게임 종료 및 카운터 기능을 추가하여 사용자 경험을 향상시켰습니다.
 
 ### 🎯 프로젝트 목표
 
-* 🎮 **터치 최적화**: 라즈베리파이 터치패드에 최적화된 UI/UX
+* 🎮 **터치 최적화**: 젯슨나노 터치패드에 최적화된 UI/UX
 * ♟️ **4인 체스 게임**: 빨강·노랑 vs 파랑·초록 팀 전투
 * 🖥️ **풀스크린 모드**: 전체 화면 게임 경험
 * 🔧 **게임 제어**: ESC, Ctrl+Q 등 다양한 종료 방법 지원
@@ -42,7 +42,7 @@
 
 ## 🔧 하드웨어 요구사항
 
-* **제어부**: Raspberry Pi / PC
+* **제어부**: NVIDIA Jetson Nano / PC
 * **터치 시스템**: 터치패드 또는 터치스크린
 * **디스플레이**: 최소 800×800 해상도 권장
 
@@ -53,6 +53,7 @@
 * **게임 로직**: Custom Chess Engine
 * **사운드**: PyQt5 Multimedia
 * **AI**: Minimax Algorithm
+* **운영체제**: Ubuntu 18.04+ / JetPack 4.6+
 
 ## 📁 프로젝트 구조
 
@@ -83,18 +84,32 @@
 * Python 3.8 이상
 * PyQt5
 * 터치패드 또는 마우스 입력 장치
+* NVIDIA Jetson Nano (권장)
+
+### 젯슨나노 환경 설정
+
+```bash
+# 시스템 업데이트
+sudo apt update && sudo apt upgrade
+
+# Python 및 PyQt5 설치
+sudo apt install python3-pip python3-pyqt5
+
+# 추가 의존성 설치
+sudo apt install python3-dev libpython3-dev
+```
 
 ### 실행 방법
 
 ```bash
 # 게임 런처를 통한 실행 (권장)
-python launcher.py
+python3 launcher.py
 
 # 직접 실행
-python app.py
+python3 app.py
 
 # 특정 AI 설정으로 실행
-python app.py --ai-level 3
+python3 app.py --ai-level 3
 ```
 
 ## 🎮 게임 조작법
@@ -125,6 +140,7 @@ python app.py --ai-level 3
 * **AI 엔진**: Minimax 알고리즘 기반 체스 AI
 * **사운드 시스템**: 체스 기물 이동 및 게임 효과음
 * **프로세스 관리**: 안전한 게임 종료 및 리소스 정리
+* **젯슨나노 최적화**: ARM64 아키텍처에 최적화된 성능
 
 ## 📄 라이선스
 
