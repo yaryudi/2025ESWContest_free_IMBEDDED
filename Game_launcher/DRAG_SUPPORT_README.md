@@ -30,7 +30,6 @@
 Game_launcher/
 ├── touch_manager.py           # 새로운 터치 매니저
 ├── improved_calibration.py    # 개선된 캘리브레이션
-├── calibration.py            # 기존 캘리브레이션 (백업)
 ├── main.py                   # 업데이트된 메인 실행 파일
 └── launcher.py               # 게임 런처
 ```
