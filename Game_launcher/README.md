@@ -1,10 +1,10 @@
-# 🎯 드래그 지원 터치 시스템 개선
+# 드래그 지원 터치 시스템 버그 수정
 
-## 📋 개요
+## 개요
 
-기존 터치 시스템의 드래그 인식 문제를 해결하기 위해 새로운 터치 매니저를 구현했습니다. 이제 터치 입력에서 드래그 동작을 정확하게 인식할 수 있습니다.
+기존 터치 시스템의 드래그 오인식 수정 
 
-## 🔧 주요 개선사항
+## 주요 개선사항
 
 ### 1. **터치 상태 관리**
 - **터치 시작** (`TOUCH_START`)
@@ -20,7 +20,7 @@
 - 안정적인 터치 좌표 추적
 
 
-## 🚀 사용법
+## 사용법
 
 ### 1. **기본 실행**
 ```bash
@@ -60,7 +60,7 @@ touch_mgr.on_drag_move = on_drag_move
 touch_mgr.on_click = on_click
 ```
 
-## ⚙️ 설정 매개변수
+## 설정 매개변수
 
 ### TouchManager 설정
 ```python
@@ -73,11 +73,6 @@ TouchManager(
 ```
 
 ### 권장 설정값
-- **높은 정밀도**: `drag_threshold=10, min_drag_distance=5`
-- **중간 정밀도**: `drag_threshold=15, min_drag_distance=8` (기본값)
-- **낮은 정밀도**: `drag_threshold=20, min_drag_distance=12`
-
-
----
-
-**개선된 터치 시스템으로 더욱 직관적이고 반응성 좋은 게임 경험을 제공**
+- **높은 민감도**: `drag_threshold=10, min_drag_distance=5`
+- **중간 민감도**: `drag_threshold=15, min_drag_distance=8` (기본값)
+- **낮은 민감도**: `drag_threshold=20, min_drag_distance=12`
