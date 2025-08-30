@@ -163,7 +163,7 @@ cd ../Poker
 python3 app.py
 ```
 
-## 🔄 개발 진행 상황
+## 🔄 개발 상황
 
 ### ✅ 완료된 기능
 - [x] 기본 하드웨어 설계 및 제작
@@ -175,39 +175,6 @@ python3 app.py
 - [x] 포커 게임 완성 (카드 인식 포함)
 - [x] 게임 런처 시스템
 - [x] 젯슨나노 환경 최적화
-
-### 🚧 개발 중인 기능
-- [ ] 터치 정확도 개선 (목표: 5mm)
-- [ ] 추가 게임 지원
-
-## 🔧 기술적 특징
-
-### AI 객체 인식
-- **YOLO 모델**: 실시간 카드 인식
-- **정확도**: 95% 이상 카드 식별
-
-### 터치 시스템
-- **터치패드**: 터치 인터페이스 최적화
-- **해상도**: 현재 1cm, 목표 5mm
-- **반응성**: <100ms 지연시간
-- **드래그 지원**: 롱프레스 및 드래그 앤 드롭
-
-### 게임 엔진
-```python
-# 예시: 게임 런처 구조
-class GameLauncher:
-    def __init__(self):
-        self.games = {
-            '4PlayerChess': ChessGame(),
-            'PianoTiles': PianoTilesGame(),
-            'SimplePaint': SimplePaintGame(),
-            'Poker': PokerGame()
-        }
-    
-    def launch_game(self, game_name):
-        if game_name in self.games:
-            self.games[game_name].start()
-```
 
 ## 👥 팀 구성
 
@@ -260,5 +227,3 @@ class GameLauncher:
 **"디지털과 아날로그가 만나는 새로운 게임 플랫폼"**
 
 🎮 **Imbedded - 테이블탑 프로젝터** 🎮
-
-*젯슨나노 환경에 최적화된 게임 플랫폼*
