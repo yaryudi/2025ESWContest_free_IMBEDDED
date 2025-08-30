@@ -11,7 +11,7 @@ def main():
     calibration_process = None
     try:
         # Popen을 사용하여 개선된 캘리브레이션 GUI를 백그라운드에서 실행
-        calibration_process = subprocess.Popen([sys.executable, 'improved_calibration.py'])
+        calibration_process = subprocess.Popen([sys.executable, 'calibration.py'])
 
         # 캘리브레이션 완료 신호 파일 대기
         signal_file = '.calibration_complete'
