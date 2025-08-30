@@ -2,7 +2,7 @@
 
 **젯슨나노 터치패드 최적화 간단한 그림판 게임**
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)  [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)  [![PyQt5](https://img.shields.io/badge/framework-PyQt5-green.svg)](https://riverbankcomputing.com/software/pyqt/)  [![Platform](https://img.shields.io/badge/platform-Jetson%20Nano-orange.svg)](https://developer.nvidia.com/embedded/jetson-nano)
+[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)  [![PyQt5](https://img.shields.io/badge/framework-PyQt5-green.svg)](https://riverbankcomputing.com/software/pyqt/)  [![Platform](https://img.shields.io/badge/platform-Jetson%20Nano-orange.svg)](https://developer.nvidia.com/embedded/jetson-nano)
 
 <p align='center'>
 	<img src='thumbnail.png' width=200 height=200 alt='SimplePaint Game'>

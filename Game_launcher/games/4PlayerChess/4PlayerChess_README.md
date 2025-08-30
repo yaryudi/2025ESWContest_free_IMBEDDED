@@ -4,6 +4,10 @@
 
 [![License](https://img.shields.io/badge/license-GPL%20v3.0-blue.svg)](COPYING.md)  [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)  [![PyQt5](https://img.shields.io/badge/framework-PyQt5-green.svg)](https://riverbankcomputing.com/software/pyqt/)  [![Platform](https://img.shields.io/badge/platform-Jetson%20Nano-orange.svg)](https://developer.nvidia.com/embedded/jetson-nano)
 
+<p align='center'>
+	<img src='4Pchess_thumbnail.jpg' width=300 height=200 alt='4-Player Chess Game'>
+</p>
+
 ## 📋 프로젝트 개요
 
 **이 프로젝트**는 기존 4인 체스 게임을 젯슨나노 터치패드 환경에 최적화하여 수정한 버전입니다. 터치 인터페이스에 맞춰 UI를 개선하고, 게임 종료 및 카운터 기능을 추가하여 사용자 경험을 향상시켰습니다.
