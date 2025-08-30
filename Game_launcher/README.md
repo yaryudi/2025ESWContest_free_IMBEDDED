@@ -1,104 +1,195 @@
-# 🎛️ 터치 캘리브레이션 & 게임 런처
+# 🎯 드래그 지원 터치 시스템 개선
 
-**터치패드 캘리브레이션과 게임 런처를 결합한 통합 시스템**
+## 📋 개요
 
-[![License](https://img.shields.io/badge/license-GPL-blue.svg)](LICENSE)  [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)  [![PyQt5](https://img.shields.io/badge/framework-PyQt5-green.svg)](https://riverbankcomputing.com/software/pyqt/)  [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-red.svg)](https://raspberrypi.org)
+기존 터치 시스템의 드래그 인식 문제를 해결하기 위해 새로운 터치 매니저를 구현했습니다. 이제 터치 입력에서 드래그 동작을 정확하게 인식할 수 있습니다.
 
-## 📋 프로젝트 개요
+## 🔧 주요 개선사항
 
-**이 프로젝트**는 Velostat 기반 터치패드 캘리브레이션과 GUI 기반 게임 런처를 결합하여, 사용자가 터치패드를 통해 마우스를 제어하고 다양한 파이썬 게임을 손쉽게 실행할 수 있도록 설계된 통합 솔루션입니다.
+### 1. **터치 상태 관리**
+- **터치 시작** (`TOUCH_START`)
+- **터치 이동** (`TOUCH_MOVE`) 
+- **터치 종료** (`TOUCH_END`)
+- **드래그 시작** (`DRAG_START`)
+- **드래그 이동** (`DRAG_MOVE`)
+- **드래그 종료** (`DRAG_END`)
 
-### 🎯 프로젝트 목표
+### 2. **노이즈 필터링**
+- 터치 히스토리를 통한 노이즈 제거
+- 최근 3개 포인트의 평균값 사용
+- 안정적인 터치 좌표 추적
 
-* 🎯 **정밀 캘리브레이션**: 4지점 터치 좌표 보정 지원
-* 🚀 **실시간 반응성**: 스레드를 이용한 빠른 터치 감지 및 마우스 제어
-* 🎮 **원클릭 게임 실행**: 앨범 스타일의 직관적인 게임 런처
-* 🔧 **확장성**: games 디렉터리 내 신규 게임 자동 로드
-* 🛠️ **안정성**: psutil 기반 프로세스 중복 실행 방지
+### 3. **드래그 감지 알고리즘**
+- 드래그 임계값: 15 센서 단위
+- 최소 드래그 거리: 8 센서 단위
+- 터치 타임아웃: 0.05초
 
-## 🚀 주요 기능
-
-1. **cali\_launcher.py**
-
-   * 터치패드 캘리브레이션 GUI와 게임 런처를 순차 실행
-2. **calibration\_gui.py**
-
-   * PyQt5 풀스크린 캘리브레이션 인터페이스
-   * CalibrationThread로 터치 감지, MouseControlThread로 보정된 마우스 이동
-   * 4개 지점(좌상·우상·좌하·우하) 캘리브레이션 단계 지원
-3. **launcher.py**
-
-   * PyQt5 기반 게임 런처 UI
-   * `games/` 디렉터리 자동 스캔 및 앨범 스타일 목록 생성
-   * 로딩 다이얼로그, 실행 중인 게임 중복 실행 방지 기능
-
-## 🔧 하드웨어 구성
-
-* **제어부**: Raspberry Pi / PC
-* **터치 시스템**: Velostat 기반 압력 센서 매트
-* **통신**: Serial (예: `/dev/ttyACM0`, 115200 baud)
-
-## 💻 소프트웨어 스택
-
-* **언어**: Python 3.8+
-* **GUI**: PyQt5
-* **수치 연산**: numpy
-* **시리얼 통신**: pyserial
-* **마우스 자동화**: pyautogui
-* **프로세스 관리**: psutil
-
-## 📁 프로젝트 구조
+## 📁 새로운 파일 구조
 
 ```
-/  
-├── cali_launcher.py        # 캘리브레이션 및 런처 실행기
-├── calibration_gui.py      # 터치캘리브레이션 GUI
-└── launcher.py             # 게임 런처 GUI
+Game_launcher/
+├── touch_manager.py           # 새로운 터치 매니저
+├── improved_calibration_avg.py    # 개선된 캘리브레이션
+├── main.py                   # 업데이트된 메인 실행 파일
+└── launcher.py               # 게임 런처
 ```
 
-## 🛠️ 설치 및 실행
+## 🚀 사용법
 
-### 필수 요구사항
-
-* Python 3.8 이상
-* PyQt5
-* numpy, pyserial, pyautogui, psutil
-
-### 설치 방법
-
+### 1. **기본 실행**
 ```bash
-git clone <repo-url>
-cd <repo>
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+cd Game_launcher
+python main.py
 ```
 
-### 실행 방법
-
+### 2. **개선된 캘리브레이션 직접 실행**
 ```bash
-# 통합 실행
-python cali_launcher.py
-
-# 개별 모듈 실행
-python calibration_gui.py
-python launcher.py
+python improved_calibration_avg.py
 ```
 
-## 🔄 개발 진행 상황
+### 3. **터치 매니저 테스트**
+```python
+from touch_manager import TouchManager, TouchState
 
-* ✅ 캘리브레이션 실행기 구현
-* ✅ 캘리베이션 GUI 완성
-* ✅ 게임 런처 GUI 완성
-* 🚧 신규 게임 자동 업데이트 기능 추가 예정
+# 터치 매니저 초기화
+touch_mgr = TouchManager(
+    drag_threshold=15,      # 드래그 시작 임계값
+    touch_timeout=0.05,     # 터치 타임아웃
+    min_drag_distance=8,    # 최소 드래그 거리
+    max_touch_points=1      # 최대 터치 포인트 수
+)
 
-## 🔧 기술적 특징
+# 콜백 함수 설정
+def on_drag_start(event):
+    print(f"드래그 시작: {event.current_point.x}, {event.current_point.y}")
 
-* **CalibrationThread**: 10ms 단위 터치 프레임 실시간 감지
-* **MouseControlThread**: 보정 행렬 기반 마우스 좌표 변환
-* **PyQt5**: 풀스크린 모드 & 반응형 UI 구성
-* **Process Guard**: psutil 활용한 중복 실행 방지 로직
+def on_drag_move(event):
+    print(f"드래그 이동: 거리={event.drag_distance:.1f}")
 
-## 📄 라이선스
+def on_click(event):
+    print(f"클릭: {event.current_point.x}, {event.current_point.y}")
 
-이 프로젝트는 [GPL License](LICENSE) 하에 배포됩니다.
+touch_mgr.on_drag_start = on_drag_start
+touch_mgr.on_drag_move = on_drag_move
+touch_mgr.on_click = on_click
+```
+
+## ⚙️ 설정 매개변수
+
+### TouchManager 설정
+```python
+TouchManager(
+    drag_threshold=15,      # 드래그 시작 임계값 (센서 단위)
+    touch_timeout=0.05,     # 터치 타임아웃 (초)
+    min_drag_distance=8,    # 최소 드래그 거리 (센서 단위)
+    max_touch_points=1      # 최대 터치 포인트 수
+)
+```
+
+### 권장 설정값
+- **높은 정밀도**: `drag_threshold=10, min_drag_distance=5`
+- **중간 정밀도**: `drag_threshold=15, min_drag_distance=8` (기본값)
+- **낮은 정밀도**: `drag_threshold=20, min_drag_distance=12`
+
+## 🎮 게임에서 활용
+
+### 1. **체스 게임**
+```python
+def on_drag_start(event):
+    # 체스 말 선택
+    piece = get_piece_at(event.current_point.x, event.current_point.y)
+    if piece:
+        select_piece(piece)
+
+def on_drag_move(event):
+    # 드래그 중인 말 하이라이트
+    highlight_square(event.current_point.x, event.current_point.y)
+
+def on_drag_end(event):
+    # 말 이동
+    move_piece(event.start_point, event.current_point)
+```
+
+### 2. **카드 게임**
+```python
+def on_drag_start(event):
+    # 카드 선택
+    card = get_card_at(event.current_point.x, event.current_point.y)
+    if card:
+        select_card(card)
+
+def on_drag_move(event):
+    # 카드 드래그 애니메이션
+    animate_card_drag(event.current_point.x, event.current_point.y)
+
+def on_drag_end(event):
+    # 카드 배치
+    place_card(event.start_point, event.current_point)
+```
+
+## 🔍 문제 해결
+
+### 1. **드래그가 너무 민감한 경우**
+```python
+# 임계값을 높여서 조정
+touch_mgr = TouchManager(drag_threshold=25, min_drag_distance=15)
+```
+
+### 2. **드래그가 잘 인식되지 않는 경우**
+```python
+# 임계값을 낮춰서 조정
+touch_mgr = TouchManager(drag_threshold=8, min_drag_distance=3)
+```
+
+### 3. **터치 노이즈가 많은 경우**
+```python
+# 히스토리 크기를 늘려서 필터링 강화
+touch_mgr.max_history_size = 8
+```
+
+## 📊 성능 개선
+
+### 1. **처리 속도**
+- 기존: 0.5초 쿨다운으로 인한 지연
+- 개선: 0.05초 타임아웃으로 실시간 반응
+
+### 2. **정확도**
+- 기존: 단일 터치 포인트만 처리
+- 개선: 히스토리 기반 노이즈 필터링
+
+### 3. **사용성**
+- 기존: 드래그 인식 불가
+- 개선: 완전한 드래그 지원
+
+## 🔄 마이그레이션 가이드
+
+### 기존 코드에서 새로운 시스템으로 전환
+
+1. **기존 터치 처리 코드**
+```python
+# 기존 방식
+if (now - self.last_touch_time) < self.touch_cool_down:
+    return
+```
+
+2. **새로운 터치 처리 코드**
+```python
+# 새로운 방식
+from touch_manager import TouchManager
+
+touch_mgr = TouchManager()
+touch_mgr.on_drag_start = self.handle_drag_start
+touch_mgr.on_drag_move = self.handle_drag_move
+touch_mgr.on_click = self.handle_click
+```
+
+## 🎯 향후 개선 계획
+
+1. **멀티터치 지원**: 여러 손가락 동시 터치
+2. **제스처 인식**: 스와이프, 핀치 등 고급 제스처
+3. **압력 감지**: 터치 압력에 따른 다양한 동작
+4. **머신러닝**: 사용자 패턴 학습을 통한 개인화
+
+---
+
+**개선된 터치 시스템으로 더욱 직관적이고 반응성 좋은 게임 경험을 제공합니다! 🎮**
