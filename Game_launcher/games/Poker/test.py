@@ -12,6 +12,250 @@ import multiprocessing as mp
 from functools import partial
 import signal
 import sys
+import subprocess
+import os
+
+def get_camera_capabilities(device_id=0):
+    """카메라가 지원하는 해상도와 포맷을 확인"""
+    try:
+        device_path = f"/dev/video{device_id}"
+        if not os.path.exists(device_path):
+            print(f"카메라 디바이스 {device_path}가 존재하지 않습니다.")
+            return None
+        
+        # v4l2-ctl 명령어가 있는지 확인
+        try:
+            result = subprocess.run(['which', 'v4l2-ctl'], capture_output=True, text=True, timeout=2)
+            if result.returncode != 0:
+                print("v4l2-ctl 명령어를 찾을 수 없습니다. 대체 방법을 사용합니다.")
+                return None
+        except:
+            print("v4l2-ctl 명령어를 찾을 수 없습니다. 대체 방법을 사용합니다.")
+            return None
+        
+        print(f"카메라 {device_path} 지원 해상도 확인 중...")
+        result = subprocess.run(['v4l2-ctl', '--device', device_path, '--list-formats-ext'], 
+                              capture_output=True, text=True, timeout=10)
+        
+        if result.returncode == 0:
+            print("카메라 지원 해상도:")
+            print(result.stdout)
+            return result.stdout
+        else:
+            print(f"해상도 확인 실패: {result.stderr}")
+            return None
+            
+    except subprocess.TimeoutExpired:
+        print("카메라 해상도 확인 타임아웃")
+        return None
+    except Exception as e:
+        print(f"카메라 해상도 확인 중 오류: {e}")
+        return None
+
+
+def diagnose_camera_state(cap, device_id):
+    """카메라 상태를 상세히 진단"""
+    try:
+        print(f"🔍 카메라 {device_id} 상태 진단:")
+        
+        # 기본 속성들 확인
+        width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        buffer_size = cap.get(cv2.CAP_PROP_BUFFERSIZE)
+        fourcc = cap.get(cv2.CAP_PROP_FOURCC)
+        
+        # FOURCC를 문자열로 변환
+        fourcc_str = "".join([chr((int(fourcc) >> 8 * i) & 0xFF) for i in range(4)])
+        
+        print(f"  현재 해상도: {width}x{height}")
+        print(f"  FPS: {fps}")
+        print(f"  버퍼 크기: {buffer_size}")
+        print(f"  코덱: {fourcc_str}")
+        
+        # 카메라가 실제로 프레임을 제공하는지 테스트 (여러 번 시도)
+        print("  프레임 읽기 테스트...")
+        
+        # 버퍼 정리
+        for _ in range(5):
+            cap.grab()
+        
+        # 프레임 읽기 시도 (최대 5번)
+        for frame_attempt in range(5):
+            ret, frame = cap.read()
+            if ret and frame is not None and frame.size > 0:
+                print(f"  프레임 읽기 성공: {frame.shape} (시도 {frame_attempt + 1})")
+                return True
+            else:
+                print(f"  프레임 읽기 실패 (시도 {frame_attempt + 1})")
+                if frame_attempt < 4:
+                    time.sleep(0.1)
+        
+        print("  프레임 읽기 최종 실패")
+        return False
+            
+    except Exception as e:
+        print(f"  카메라 진단 중 오류: {e}")
+        return False
+
+def force_camera_resolution(cap, target_width, target_height, max_attempts=5):
+    """카메라 해상도를 강제로 설정하는 함수"""
+    print(f"🎯 해상도 {target_width}x{target_height} 강제 설정 시도...")
+    
+    for attempt in range(max_attempts):
+        try:
+            # 현재 해상도 확인
+            current_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            current_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            print(f"  시도 {attempt + 1}: 현재 해상도 {current_width}x{current_height}")
+            
+            # 이미 목표 해상도라면 성공
+            if abs(current_width - target_width) <= 5 and abs(current_height - target_height) <= 5:
+                print(f"✅ 이미 목표 해상도 {target_width}x{target_height}로 설정됨!")
+                return True
+            
+            # 해상도 설정 전에 카메라 상태 안정화
+            if attempt > 0:
+                print("  카메라 상태 안정화 중...")
+                # 버퍼 정리
+                for _ in range(5):
+                    cap.grab()
+                time.sleep(0.2)
+            
+            # 해상도 설정
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, target_width)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, target_height)
+            
+            # 설정 적용 대기 (시도 횟수에 따라 대기 시간 증가)
+            wait_time = 0.2 + (attempt * 0.1)
+            time.sleep(wait_time)
+            
+            # 설정 확인
+            new_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            new_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            
+            print(f"  설정 후 해상도: {new_width}x{new_height}")
+            
+            # 목표 해상도와 일치하는지 확인 (약간의 오차 허용)
+            if abs(new_width - target_width) <= 5 and abs(new_height - target_height) <= 5:
+                print(f"✅ 해상도 {target_width}x{target_height} 설정 성공!")
+                return True
+            else:
+                print(f"❌ 해상도 설정 실패 (목표: {target_width}x{target_height}, 실제: {new_width}x{new_height})")
+                
+                # 추가적인 강제 설정 시도
+                if attempt < max_attempts - 1:
+                    print("  추가 설정 시도...")
+                    # 더 강력한 버퍼 정리
+                    for _ in range(10):
+                        cap.grab()
+                    time.sleep(0.2)
+                    
+                    # 다시 설정 (더 긴 대기 시간)
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, target_width)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, target_height)
+                    time.sleep(0.5)
+                    
+        except Exception as e:
+            print(f"  해상도 설정 중 오류: {e}")
+            time.sleep(0.2)
+    
+    print(f"⚠️ 해상도 {target_width}x{target_height} 설정 최종 실패")
+    return False
+
+def kill_camera_processes():
+    """카메라를 사용하는 프로세스들을 종료"""
+    try:
+        print("카메라 사용 프로세스 확인 중...")
+        
+        # 카메라를 사용하는 프로세스 찾기
+        result = subprocess.run(['lsof', '/dev/video0'], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0 and result.stdout.strip():
+            print("카메라를 사용하는 프로세스 발견:")
+            print(result.stdout)
+            
+            # 프로세스 종료 시도
+            lines = result.stdout.strip().split('\n')[1:]  # 헤더 제외
+            for line in lines:
+                if line.strip():
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        pid = parts[1]
+                        try:
+                            print(f"프로세스 {pid} 종료 시도...")
+                            subprocess.run(['kill', '-TERM', pid], timeout=3)
+                            time.sleep(0.5)
+                            # 강제 종료 시도
+                            subprocess.run(['kill', '-KILL', pid], timeout=3)
+                            print(f"프로세스 {pid} 종료 완료")
+                        except:
+                            print(f"프로세스 {pid} 종료 실패")
+        else:
+            print("카메라를 사용하는 프로세스 없음")
+            
+        time.sleep(1)  # 프로세스 종료 대기
+        return True
+        
+    except Exception as e:
+        print(f"프로세스 종료 중 오류: {e}")
+        return False
+
+def reset_camera_device(device_id=0):
+    """시스템 레벨에서 카메라 디바이스를 리셋"""
+    try:
+        device_path = f"/dev/video{device_id}"
+        if os.path.exists(device_path):
+            print(f"카메라 디바이스 {device_path} 리셋 시도...")
+            
+            # 1단계: 카메라 사용 프로세스 종료
+            kill_camera_processes()
+            
+            # v4l2-ctl 명령어가 있는지 확인
+            try:
+                result = subprocess.run(['which', 'v4l2-ctl'], capture_output=True, text=True, timeout=2)
+                if result.returncode != 0:
+                    print("v4l2-ctl 명령어를 찾을 수 없습니다. 리셋을 건너뜁니다.")
+                    return True
+            except:
+                print("v4l2-ctl 명령어를 찾을 수 없습니다. 리셋을 건너뜁니다.")
+                return True
+            
+            # 2단계: 여러 리셋 방법 시도 (방법 1 제거)
+            reset_methods = [
+                # 방법 1: 포맷 설정으로 리셋
+                ['v4l2-ctl', '--device', device_path, '--set-fmt-video=width=640,height=480,pixelformat=MJPG'],
+                # 방법 2: 더 간단한 포맷 설정
+                ['v4l2-ctl', '--device', device_path, '--set-fmt-video=pixelformat=MJPG'],
+                # 방법 3: 카메라 설정 초기화
+                ['v4l2-ctl', '--device', device_path, '--set-ctrl=brightness=128'],
+                # 방법 4: 강제 해상도 설정
+                ['v4l2-ctl', '--device', device_path, '--set-fmt-video=width=1920,height=1080,pixelformat=MJPG'],
+            ]
+            
+            for i, method in enumerate(reset_methods):
+                try:
+                    print(f"리셋 방법 {i+1} 시도...")
+                    result = subprocess.run(method, capture_output=True, text=True, timeout=5)
+                    if result.returncode == 0:
+                        print(f"리셋 방법 {i+1} 성공!")
+                        time.sleep(0.5)
+                        return True
+                    else:
+                        print(f"리셋 방법 {i+1} 실패: {result.stderr}")
+                except Exception as e:
+                    print(f"리셋 방법 {i+1} 실행 중 오류: {e}")
+            
+            print("모든 리셋 방법 실패")
+            return False
+        else:
+            print(f"카메라 디바이스 {device_path}가 존재하지 않습니다.")
+            return False
+    except subprocess.TimeoutExpired:
+        print("카메라 리셋 명령어 타임아웃")
+        return False
+    except Exception as e:
+        print(f"카메라 리셋 중 오류: {e}")
+        return False
 
 def process_card_worker(model_path, warped_image):
     """별도의 프로세스에서 실행될 카드 처리 함수"""
@@ -36,55 +280,295 @@ class FrameCapture:
         self.cap = None
         self._initialize_camera()
     
+    def _force_close_camera(self):
+        """카메라를 강제로 닫고 리소스 정리"""
+        if self.cap:
+            try:
+                print(f"카메라 {self.device_id} 강제 해제 시작...")
+                
+                if self.cap.isOpened():
+                    # 1단계: 버퍼 정리
+                    print("  버퍼 정리 중...")
+                    for i in range(10):
+                        try:
+                            self.cap.grab()
+                        except:
+                            break
+                    
+                    # 2단계: 카메라 설정 초기화
+                    try:
+                        print("  카메라 설정 초기화 중...")
+                        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                    except:
+                        pass
+                    
+                    # 3단계: 카메라 해제
+                    print("  카메라 해제 중...")
+                    self.cap.release()
+                
+                # 4단계: 객체 정리
+                self.cap = None
+                
+                # 5단계: 시스템 리소스 해제 대기
+                time.sleep(0.5)
+                
+                print(f"카메라 {self.device_id} 강제 해제 완료")
+                
+            except Exception as e:
+                print(f"카메라 강제 닫기 중 오류: {e}")
+                self.cap = None
+    
     def _initialize_camera(self):
         """카메라 초기화 - V4L2 백엔드 사용"""
-        try:
-            # V4L2 백엔드로 카메라 열기
-            self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_V4L2)
-            
-            if not self.cap.isOpened():
-                # 문자열 경로로 시도
-                device_path = f"/dev/video{self.device_id}"
-                self.cap = cv2.VideoCapture(device_path, cv2.CAP_V4L2)
+        max_init_attempts = 3
+        
+        for init_attempt in range(max_init_attempts):
+            try:
+                print(f"카메라 초기화 시작... (시도 {init_attempt + 1}/{max_init_attempts})")
                 
-                if not self.cap.isOpened():
-                    raise RuntimeError(f"웹캠 {self.device_id} 연결 실패")
-            
-            # 웹캠 설정 (해상도 및 코덱 설정)
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 3840)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 2160)
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # 버퍼 크기 최소화
-            
-            # 코덱 설정
-            if self.codec == 'MJPG':
+                # 이전 시도에서 카메라가 열려있다면 닫기
+                if init_attempt > 0:
+                    self._force_close_camera()
+                    time.sleep(0.5)  # 리소스 해제 대기
+                
+                # 카메라 디바이스 리셋 시도 (선택적)
+                reset_camera_device(self.device_id)
+                
+                # 첫 번째 시도에서만 카메라 지원 해상도 확인 (디버깅용)
+                if init_attempt == 0:
+                    get_camera_capabilities(self.device_id)
+                
+                # V4L2 백엔드로만 카메라 열기 (MJPG 코덱 우선)
+                camera_opened = False
+                
+                # 방법 1: V4L2 백엔드로 인덱스 사용
+                print("카메라 열기 시도 1: V4L2 백엔드 (인덱스)")
+                self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_V4L2)
+                if self.cap.isOpened():
+                    camera_opened = True
+                    print("✅ 카메라 열기 성공 (방법 1)")
+                
+                if not camera_opened:
+                    # 방법 2: V4L2 백엔드로 경로 사용
+                    print("카메라 열기 시도 2: V4L2 백엔드 (경로)")
+                    device_path = f"/dev/video{self.device_id}"
+                    self.cap = cv2.VideoCapture(device_path, cv2.CAP_V4L2)
+                    if self.cap.isOpened():
+                        camera_opened = True
+                        print("✅ 카메라 열기 성공 (방법 2)")
+                
+                if not camera_opened:
+                    if init_attempt < max_init_attempts - 1:
+                        print(f"카메라 연결 실패, 재시도 중... ({init_attempt + 1}/{max_init_attempts})")
+                        continue
+                    else:
+                        raise RuntimeError(f"웹캠 {self.device_id} 연결 실패")
+                
+                # 카메라가 완전히 열릴 때까지 대기
+                time.sleep(0.3)
+                
+                # MJPG 코덱 강제 설정 (YUYV 완전 차단)
+                print("🎨 MJPG 코덱 강제 설정 중...")
+                
+                mjpg_fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
+                codec_set_success = False
+                
+                for codec_attempt in range(15):
+                    # MJPG 코덱 설정
+                    self.cap.set(cv2.CAP_PROP_FOURCC, mjpg_fourcc)
+                    time.sleep(0.3)
+                    
+                    # 설정된 코덱 확인
+                    current_fourcc = self.cap.get(cv2.CAP_PROP_FOURCC)
+                    current_fourcc_str = "".join([chr((int(current_fourcc) >> 8 * i) & 0xFF) for i in range(4)])
+                    
+                    if current_fourcc_str == 'MJPG':
+                        print(f"✅ MJPG 코덱 설정 성공! (시도 {codec_attempt + 1})")
+                        codec_set_success = True
+                        break
+                    elif current_fourcc_str == 'YUYV':
+                        print(f"❌ YUYV 코덱 감지! MJPG 재설정 중... (시도 {codec_attempt + 1})")
+                        # YUYV가 감지되면 즉시 MJPG로 재설정
+                        self.cap.set(cv2.CAP_PROP_FOURCC, mjpg_fourcc)
+                        time.sleep(0.5)
+                    else:
+                        if codec_attempt < 5:
+                            print(f"❌ MJPG 코덱 설정 실패, 재시도... ({current_fourcc_str})")
+                        elif codec_attempt % 3 == 0:
+                            print(f"❌ MJPG 코덱 설정 실패 (시도 {codec_attempt + 1}): {current_fourcc_str}")
+                        time.sleep(0.4)
+                
+                if not codec_set_success:
+                    print("⚠️ MJPG 코덱 설정 실패, 현재 코덱으로 진행")
+                
+                # 코덱 설정 후 충분한 대기
+                time.sleep(0.5)
+                
+                # 버퍼 크기 최소화 설정
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                
+                # 스마트 해상도 설정 (4K 우선, 실패 시 점진적 감소)
+                print("🚀 스마트 해상도 설정 시작...")
+                
+                resolutions_to_try = [
+                    (3840, 2160, "4K"),
+                    (1920, 1080, "Full HD"),
+                    (1280, 720, "HD"),
+                    (640, 480, "기본")
+                ]
+                
+                resolution_success = False
+                actual_width = 640
+                actual_height = 480
+                
+                for width, height, res_name in resolutions_to_try:
+                    print(f"🎯 {res_name} 해상도({width}x{height}) 설정 시도...")
+                    
+                    if force_camera_resolution(self.cap, width, height, max_attempts=5):
+                        actual_width = width
+                        actual_height = height
+                        print(f"🎉 {res_name} 해상도 설정 완료!")
+                        resolution_success = True
+                        break
+                    else:
+                        print(f"❌ {res_name} 해상도 설정 실패")
+                
+                if not resolution_success:
+                    print("⚠️ 모든 해상도 설정 실패, 현재 해상도로 진행")
+                    actual_width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+                    actual_height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+                
+                print(f"카메라 {self.device_id} 연결 성공: {actual_width}x{actual_height}")
+                
+                # 4K 해상도만 집중해서 설정
+                print("🎯 4K 해상도 집중 설정 중...")
+                
+                # 4K 해상도 강제 설정
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 3840)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 2160)
+                time.sleep(0.5)
+                
+                # MJPG 코덱 재강제 설정 (YUYV 완전 차단)
+                print("🔧 MJPG 코덱 재강제 설정 중...")
+                
+                for recheck_attempt in range(10):
+                    # MJPG 코덱 설정
+                    self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+                    time.sleep(0.4)
+                    
+                    # 설정된 코덱 확인
+                    current_fourcc = self.cap.get(cv2.CAP_PROP_FOURCC)
+                    current_fourcc_str = "".join([chr((int(current_fourcc) >> 8 * i) & 0xFF) for i in range(4)])
+                    
+                    if current_fourcc_str == 'MJPG':
+                        print(f"✅ MJPG 코덱 재설정 성공! (시도 {recheck_attempt + 1})")
+                        break
+                    elif current_fourcc_str == 'YUYV':
+                        print(f"❌ YUYV 코덱 감지! MJPG 재설정 중... (시도 {recheck_attempt + 1})")
+                        # YUYV가 감지되면 즉시 MJPG로 재설정
+                        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+                        time.sleep(0.6)
+                    else:
+                        if recheck_attempt < 3:
+                            print(f"❌ MJPG 코덱 재설정 실패, 재시도... ({current_fourcc_str})")
+                        else:
+                            print(f"❌ MJPG 코덱 재설정 실패 (시도 {recheck_attempt + 1}): {current_fourcc_str}")
+                        time.sleep(0.6)
+                
+                # 최종 설정 확인
+                final_width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+                final_height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+                final_fourcc = self.cap.get(cv2.CAP_PROP_FOURCC)
+                final_fourcc_str = "".join([chr((int(final_fourcc) >> 8 * i) & 0xFF) for i in range(4)])
+                
+                print(f"✅ 최종 설정: {final_width}x{final_height} ({final_fourcc_str})")
+                
+                # 4K 해상도가 아니면 재초기화 시도
+                if int(final_width) != 3840 or int(final_height) != 2160:
+                    print("⚠️ 4K 해상도 설정 실패, 카메라 재초기화 시도...")
+                    raise RuntimeError("4K 해상도 설정 실패")
+                
+                # 카메라 상태 진단
+                diagnose_camera_state(self.cap, self.device_id)
+                
+                # 카메라 초기화를 위한 추가 대기
+                time.sleep(0.5)
+                
+                # 카메라가 실제로 프레임을 제공할 준비가 될 때까지 대기
+                print("📸 프레임 읽기 준비 테스트...")
+                
+                # 카메라 스트림 시작 강제화 (여러 방법 시도)
+                print("📸 카메라 스트림 시작 강제화...")
+                
+                # 방법 1: 강력한 버퍼 정리
+                print("  방법 1: 강력한 버퍼 정리 시도...")
+                for _ in range(10):
+                    self.cap.grab()
+                
+                ret, frame = self.cap.read()
+                if ret and frame is not None and frame.size > 0:
+                    print(f"✅ 방법 1 성공! 프레임 크기: {frame.shape}")
+                    if frame.shape[1] == 3840 and frame.shape[0] == 2160:
+                        print("✅ 4K 프레임 읽기 준비 완료")
+                        return
+                
+                # 방법 2: 카메라 재설정 후 시도
+                print("  방법 2: 카메라 재설정 후 시도...")
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 3840)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 2160)
                 self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-            elif self.codec == 'YUYV':
-                self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('Y', 'U', 'Y', 'V'))
-            else:
-                # 기본값으로 MJPG 사용
-                self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-            
-            # 설정 확인
-            actual_width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-            actual_height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-            
-            print(f"카메라 {self.device_id} 연결 성공: {actual_width}x{actual_height}")
-            
-            # 카메라 초기화를 위한 짧은 대기
-            time.sleep(0.5)  # 대기 시간 증가 (0.3초 → 0.5초)
-            
-            # 카메라가 실제로 프레임을 제공할 준비가 될 때까지 대기
-            if not self._wait_for_camera_ready(max_attempts=15, delay=0.1):
-                print("경고: 카메라 초기화 중 프레임 읽기 실패, 계속 진행")
-            
-            print("카메라 초기화 완료")
-            
-        except Exception as e:
-            print(f"카메라 초기화 중 오류: {e}")
-            if self.cap:
+                time.sleep(1.0)
+                
+                for _ in range(5):
+                    self.cap.grab()
+                
+                ret, frame = self.cap.read()
+                if ret and frame is not None and frame.size > 0:
+                    print(f"✅ 방법 2 성공! 프레임 크기: {frame.shape}")
+                    if frame.shape[1] == 3840 and frame.shape[0] == 2160:
+                        print("✅ 4K 프레임 읽기 준비 완료")
+                        return
+                
+                # 방법 3: 카메라 재연결 시도
+                print("  방법 3: 카메라 재연결 시도...")
                 self.cap.release()
-                self.cap = None
-            raise
+                time.sleep(0.5)
+                
+                self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_V4L2)
+                if self.cap.isOpened():
+                    self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+                    self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 3840)
+                    self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 2160)
+                    time.sleep(1.0)
+                    
+                    for _ in range(5):
+                        self.cap.grab()
+                    
+                    ret, frame = self.cap.read()
+                    if ret and frame is not None and frame.size > 0:
+                        print(f"✅ 방법 3 성공! 프레임 크기: {frame.shape}")
+                        if frame.shape[1] == 3840 and frame.shape[0] == 2160:
+                            print("✅ 4K 프레임 읽기 준비 완료")
+                            return
+                
+                print("❌ 모든 스트림 시작 방법 실패")
+                print("⚠️ 프레임 읽기 실패, 카메라 재초기화 시도...")
+                raise RuntimeError("프레임 읽기 실패")
+                
+                print("카메라 초기화 완료")
+                return  # 성공적으로 초기화 완료
+                
+            except Exception as e:
+                print(f"카메라 초기화 시도 {init_attempt + 1} 실패: {e}")
+                if init_attempt < max_init_attempts - 1:
+                    print("다음 시도를 위해 잠시 대기...")
+                    time.sleep(1)
+                    continue
+                else:
+                    print("모든 초기화 시도 실패")
+                    raise
 
     def read(self):
         """프레임 읽기 - 안전하고 안정적인 방식으로 개선"""
@@ -201,6 +685,9 @@ class FrameCapture:
                 
                 # 2단계: 카메라 설정을 원래대로 복원
                 try:
+                    # 해상도를 기본값으로 리셋
+                    self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                    self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
                     self.cap.set(cv2.CAP_PROP_SETTINGS, 0)
                     print("  카메라 설정 복원 완료")
                 except Exception as e:
@@ -211,6 +698,9 @@ class FrameCapture:
                 
                 # 4단계: 카메라 객체를 None으로 설정
                 self.cap = None
+                
+                # 5단계: 시스템 리소스 정리를 위한 짧은 대기
+                time.sleep(0.1)
                 
                 print(f"카메라 {self.device_id} 연결 해제 완료")
                 
@@ -536,9 +1026,9 @@ class CardDetector:
         print(f"Otsu 임계값: {otsu_threshold}")
         
         # 2. 더 엄격한 임계값 적용 (Otsu 임계값보다 높게)
-        strict_threshold = min(otsu_threshold + 20, 240)  # Otsu + 20, 최대 240
-        _, thresh_strict = cv2.threshold(enhanced, strict_threshold, 255, cv2.THRESH_BINARY)
-        print(f"엄격한 임계값: {strict_threshold}")
+        #strict_threshold = min(otsu_threshold -20, 240)  # Otsu + 20, 최대 240
+        _, thresh_strict = cv2.threshold(enhanced, 0.5*otsu_threshold, otsu_threshold, cv2.THRESH_BINARY)
+        #print(f"엄격한 임계값: {strict_threshold}")
         
         # 3. 적응형 임계값도 시도
         thresh_adaptive = cv2.adaptiveThreshold(enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
