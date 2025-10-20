@@ -6,9 +6,23 @@
 체스 말을 놓을 때 탁하는 소리와 중세 BGM을 재생합니다.
 """
 
-from PyQt5.QtCore import QUrl
-from PyQt5.QtMultimedia import QSoundEffect, QMediaPlayer, QMediaContent
 import os
+
+# PyQt5.QtMultimedia를 선택적으로 import (Jetson Nano 같은 환경에서는 없을 수 있음)
+try:
+    from PyQt5.QtCore import QUrl
+    from PyQt5.QtMultimedia import QSoundEffect, QMediaPlayer, QMediaContent
+    MULTIMEDIA_AVAILABLE = True
+    print("PyQt5.QtMultimedia를 사용할 수 있습니다.")
+except ImportError as e:
+    print(f"PyQt5.QtMultimedia를 찾을 수 없습니다: {e}")
+    print("사운드 기능 없이 게임이 실행됩니다.")
+    MULTIMEDIA_AVAILABLE = False
+    # 더미 클래스 정의
+    QUrl = None
+    QSoundEffect = None
+    QMediaPlayer = None
+    QMediaContent = None
 
 class SoundManager:
     """체스 게임의 사운드를 관리하는 클래스"""
@@ -26,6 +40,10 @@ class SoundManager:
     
     def load_sounds(self):
         """사운드 파일들을 로드합니다."""
+        if not MULTIMEDIA_AVAILABLE:
+            print("PyQt5.QtMultimedia가 없어서 사운드를 로드하지 않습니다.")
+            return
+            
         try:
             # 체스 말 놓는 소리 로드
             sound_path = os.path.join("resources", "sounds", "chess_move.wav")
