@@ -302,7 +302,7 @@ class PokerGame(QWidget):
         self.setWindowTitle("텍사스 홀덤 포커")
         self.setMinimumSize(1920, 1080)
         self.resize(1920, 1080)
-        self.setStyleSheet("background-color: #0B6623;")
+        self.setStyleSheet("background-color: #053311;")
 
         self.initialization_complete = False
 
@@ -411,7 +411,7 @@ class PokerGame(QWidget):
         """게임 보드 및 주요 UI 컴포넌트를 초기화합니다."""
         self.board = QWidget(self)
         self.board.setGeometry(0, 0, self.width(), self.height())  # 창 전체 사용
-        self.board.setStyleSheet("background-color: #0B6623;")
+        self.board.setStyleSheet("background-color: #053311;")
 
         # 쇼다운 오버레이 추가
         self.showdown_overlay = QWidget(self.board)
