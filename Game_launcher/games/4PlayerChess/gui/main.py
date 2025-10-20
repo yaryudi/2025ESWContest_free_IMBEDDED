@@ -130,6 +130,38 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # if self.statusBar(): # 상태바는 이미 위에서 주석 처리됨
         #     self.statusBar().hide()
 
+        # 나가기 버튼 추가
+        from PyQt5.QtWidgets import QPushButton
+        from PyQt5.QtCore import QSize
+        self.exit_button = QPushButton("나가기", self)
+        self.exit_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(220, 50, 50, 200);
+                color: white;
+                border: 2px solid rgba(180, 30, 30, 255);
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 10px 20px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 70, 70, 220);
+                border: 2px solid rgba(220, 50, 50, 255);
+            }
+            QPushButton:pressed {
+                background-color: rgba(180, 30, 30, 255);
+            }
+        """)
+        self.exit_button.setMinimumSize(QSize(120, 50))
+        self.exit_button.clicked.connect(self.close)
+        self.exit_button.raise_()  # 버튼을 최상위로
+        self.exit_button.show()
+        
+        # 화면 크기 변경 시 버튼 위치 재조정을 위한 타이머
+        self.resize_timer = QTimer(self)
+        self.resize_timer.timeout.connect(self.update_exit_button_position)
+        self.resize_timer.start(100)  # 100ms마다 체크
+
         # Connect signals (타이머 관련 시그널 연결은 주석 처리)
         self.view.clicked.connect(self.viewClicked)
         self.algorithm.boardChanged.connect(self.view.setBoard)
@@ -815,6 +847,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """폰 승진 선택을 처리합니다."""
         self.algorithm.promoteValue(piece_code)
 
+    def update_exit_button_position(self):
+        """나가기 버튼의 위치를 화면 우측 상단으로 업데이트합니다."""
+        if hasattr(self, 'exit_button'):
+            # 화면 우측 상단에서 약간 안쪽으로 배치
+            x = self.width() - self.exit_button.width() - 20
+            y = 20
+            self.exit_button.move(x, y)
+
     def closeEvent(self, event):
         """창이 닫힐 때 호출되는 이벤트"""
         print("체스 게임을 종료합니다...")
@@ -823,6 +863,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.game_exit_timer.stop()
         if hasattr(self, 'countdown_timer'):
             self.countdown_timer.stop()
+        if hasattr(self, 'resize_timer'):
+            self.resize_timer.stop()
         # 사운드 정지
         if hasattr(self, 'sound_manager'):
             self.sound_manager.stop_bgm()
