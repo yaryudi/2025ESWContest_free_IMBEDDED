@@ -23,7 +23,15 @@ class GameLaunchThread(QThread):
         try:
             # 게임 실행
             process = subprocess.Popen([sys.executable, self.script_path], cwd=self.game_dir)
-            self.game_started.emit()
+            
+            # 최소 2초 대기 (로딩 다이얼로그가 보이도록)
+            self.msleep(2000)
+            
+            # 프로세스가 실제로 실행 중인지 확인
+            if process.poll() is None:  # 프로세스가 아직 실행 중
+                self.game_started.emit()
+            else:
+                self.game_failed.emit("게임 프로세스가 즉시 종료되었습니다.")
         except Exception as e:
             self.game_failed.emit(str(e))
 
@@ -34,25 +42,28 @@ class LoadingDialog(QFrame):
         self.setup_ui()
         
     def setup_ui(self):
-        self.setFixedSize(300, 150)
+        self.setFixedSize(400, 200)  # 크기를 더 크게
         self.setStyleSheet("""
             QFrame {
-                background-color: #2b2b2b;
-                border: 2px solid #555;
-                border-radius: 15px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #2b2b2b, stop:0.5 #3a3a3a, stop:1 #2b2b2b);
+                border: 3px solid #4CAF50;
+                border-radius: 20px;
             }
         """)
         
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
         
         # 로딩 텍스트
         self.loading_label = QLabel("게임을 시작하는 중...")
         self.loading_label.setStyleSheet("""
             QLabel {
-                color: white;
-                font-size: 16px;
+                color: #4CAF50;
+                font-size: 20px;
                 font-weight: bold;
+                background-color: transparent;
             }
         """)
         self.loading_label.setAlignment(Qt.AlignCenter)
@@ -61,22 +72,38 @@ class LoadingDialog(QFrame):
         self.progress_bar = QProgressBar()
         self.progress_bar.setStyleSheet("""
             QProgressBar {
-                border: 2px solid #555;
-                border-radius: 10px;
+                border: 3px solid #4CAF50;
+                border-radius: 15px;
                 text-align: center;
                 background-color: #1a1a1a;
                 color: white;
                 font-weight: bold;
+                font-size: 14px;
+                height: 30px;
             }
             QProgressBar::chunk {
-                background-color: #4CAF50;
-                border-radius: 8px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #4CAF50, stop:1 #66BB6A);
+                border-radius: 12px;
             }
         """)
         self.progress_bar.setRange(0, 0)  # 무한 로딩
         
+        # 추가 정보 라벨
+        self.info_label = QLabel("잠시만 기다려주세요...")
+        self.info_label.setStyleSheet("""
+            QLabel {
+                color: #cccccc;
+                font-size: 14px;
+                font-weight: normal;
+                background-color: transparent;
+            }
+        """)
+        self.info_label.setAlignment(Qt.AlignCenter)
+        
         layout.addWidget(self.loading_label)
         layout.addWidget(self.progress_bar)
+        layout.addWidget(self.info_label)
         
         # 애니메이션 타이머
         self.animation_timer = QTimer(self)
@@ -93,6 +120,16 @@ class LoadingDialog(QFrame):
         self.dots_count = (self.dots_count + 1) % 4
         dots = "." * self.dots_count
         self.loading_label.setText(f"게임을 시작하는 중{dots}")
+        
+        # 추가 정보 텍스트도 변경
+        info_texts = [
+            "잠시만 기다려주세요...",
+            "게임을 준비하고 있습니다...",
+            "리소스를 로딩 중입니다...",
+            "거의 완료되었습니다..."
+        ]
+        info_index = (self.dots_count) % len(info_texts)
+        self.info_label.setText(info_texts[info_index])
 
 class GameLauncher(QMainWindow):
     def __init__(self):
@@ -482,11 +519,17 @@ class GameLauncher(QMainWindow):
         self.loading_dialog = LoadingDialog(self)
         self.loading_dialog.start_animation()
         
-        # 중앙에 배치
+        # 중앙에 배치하고 최상위로 설정
         dialog_x = (self.width() - self.loading_dialog.width()) // 2
         dialog_y = (self.height() - self.loading_dialog.height()) // 2
         self.loading_dialog.move(dialog_x, dialog_y)
+        self.loading_dialog.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         self.loading_dialog.show()
+        self.loading_dialog.raise_()
+        self.loading_dialog.activateWindow()
+        
+        # 강제로 화면 업데이트
+        QApplication.processEvents()
         
         # 게임 실행 스레드 시작
         script_path = os.path.abspath(self.current_game["path"])
