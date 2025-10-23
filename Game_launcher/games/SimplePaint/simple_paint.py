@@ -12,8 +12,7 @@ from PyQt5.QtGui import QPainter, QPen, QColor, QPixmap, QFont
 class Canvas(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
-        # 전체화면에 맞게 최소 크기 설정
-        self.setMinimumSize(1200, 800)
+        self.setMinimumSize(800, 600)
         self.setStyleSheet("QFrame { background-color: white; border: 2px solid #ccc; }")
         
         # 마우스 이벤트를 받을 수 있도록 설정
@@ -26,8 +25,8 @@ class Canvas(QFrame):
         self.pen_color = QColor(0, 0, 0)  # 검은색
         self.pen_width = 3
         
-        # 캔버스 초기화 (더 큰 크기로)
-        self.canvas = QPixmap(1200, 800)
+        # 캔버스 초기화
+        self.canvas = QPixmap(800, 600)
         self.canvas.fill(Qt.white)
         
     def resizeEvent(self, event):
@@ -70,6 +69,12 @@ class Canvas(QFrame):
             print(f"DEBUG: Canvas 마우스 릴리즈 - 위치: {event.pos()}")
             self.drawing = False
             
+
+            
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.drawing = False
+            
     def clear_canvas(self):
         self.canvas.fill(Qt.white)
         self.update()
@@ -87,8 +92,7 @@ class SimplePaintGame(QMainWindow):
         
     def init_ui(self):
         self.setWindowTitle("터치패드 드래그 테스트 - 간단한 그림판")
-        # 전체화면으로 설정
-        self.showFullScreen()
+        self.setGeometry(100, 100, 1000, 700)
         
         # 중앙 위젯
         central_widget = QWidget()
@@ -188,24 +192,6 @@ class SimplePaintGame(QMainWindow):
         """)
         control_layout.addWidget(clear_btn)
         
-        # 종료 버튼
-        exit_btn = QPushButton("종료")
-        exit_btn.clicked.connect(self.close_application)
-        exit_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f44336;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #da190b;
-            }
-        """)
-        control_layout.addWidget(exit_btn)
-        
         control_layout.addStretch()
         main_layout.addLayout(control_layout)
         
@@ -215,7 +201,7 @@ class SimplePaintGame(QMainWindow):
         
         # 상태 표시
         status_layout = QHBoxLayout()
-        self.status_label = QLabel("전체화면 모드 - 터치패드로 드래그해보세요! (ESC 키로 창 모드, 종료 버튼으로 나가기)")
+        self.status_label = QLabel("준비됨 - 터치패드로 드래그해보세요!")
         self.status_label.setStyleSheet("QLabel { color: #666; padding: 5px; }")
         status_layout.addWidget(self.status_label)
         
@@ -252,26 +238,6 @@ class SimplePaintGame(QMainWindow):
             
     def mouseReleaseEvent(self, event):
         self.status_label.setText("마우스 릴리즈됨")
-        
-    def close_application(self):
-        """애플리케이션 종료"""
-        self.close()
-        
-    def keyPressEvent(self, event):
-        """키보드 이벤트 처리"""
-        if event.key() == Qt.Key_Escape:
-            self.toggle_fullscreen()
-        else:
-            super().keyPressEvent(event)
-            
-    def toggle_fullscreen(self):
-        """전체화면 토글"""
-        if self.isFullScreen():
-            self.showNormal()
-            self.status_label.setText("창 모드 - 터치패드로 드래그해보세요! (ESC 키로 전체화면, 종료 버튼으로 나가기)")
-        else:
-            self.showFullScreen()
-            self.status_label.setText("전체화면 모드 - 터치패드로 드래그해보세요! (ESC 키로 창 모드, 종료 버튼으로 나가기)")
 
 def main():
     app = QApplication(sys.argv)

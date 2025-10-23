@@ -11,6 +11,7 @@ from PyQt5.QtGui import QFont, QColor, QTransform, QPainter, QPixmap, QImage
 from PyQt5.QtCore import Qt, QTimer, QPoint
 from hand_evaluator import HandEvaluator
 from test import CardDetector
+from camera_loading_dialog import CameraLoadingDialog
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -358,19 +359,60 @@ class PokerGame(QWidget):
         # 쇼다운 상태 변수
         self.is_showdown = False
 
-        # 게임 초기화 및 UI 설정
-        self.init_game()
-        self.setup_players_ui()
-        self.init_round()
-
         # 창을 화면 중앙에 배치
         qr = self.frameGeometry()
         cp = self.screen().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
-        # 카드 인식 기능 초기화
-        self.card_detector = CardDetector(num_players=self.num_players)
+        # 카메라 로딩 다이얼로그 표시
+        self.camera_loading_dialog = CameraLoadingDialog(self)
+        self.camera_loading_dialog.show()
+        
+        # 재시도/종료 버튼 이벤트 연결
+        self.camera_loading_dialog.retry_button.clicked.connect(self.retry_camera_initialization)
+        self.camera_loading_dialog.exit_button.clicked.connect(self.close)
+        
+        # UI 업데이트를 강제로 실행하여 로딩 다이얼로그가 먼저 표시되도록 함
+        QApplication.processEvents()
+        
+        # 로딩 다이얼로그가 완전히 표시될 때까지 대기
+        QTimer.singleShot(200, self.initialize_camera)
+        
+    def initialize_camera(self):
+        """카메라 초기화를 별도 메서드로 분리"""
+        # 로딩 콜백 함수 정의
+        def loading_callback(attempt, max_attempts, status_message):
+            self.camera_loading_dialog.update_progress(attempt, max_attempts, status_message)
+        
+        # 카드 감지기 초기화 (로딩 콜백 포함)
+        try:
+            self.card_detector = CardDetector(num_players=self.num_players, loading_callback=loading_callback)
+            # 성공 시 로딩 다이얼로그 업데이트
+            self.camera_loading_dialog.show_success()
+            # 1초 후 로딩 다이얼로그 닫고 게임 초기화
+            QTimer.singleShot(1000, self.finish_initialization)
+        except Exception as e:
+            # 실패 시 에러 메시지 표시 (재시도/종료 버튼 포함)
+            self.camera_loading_dialog.show_error("카메라 연결 실패: 연결 상태를 다시 확인해주세요.")
+    
+    def retry_camera_initialization(self):
+        """카메라 초기화 재시도"""
+        # 다이얼로그를 초기 상태로 리셋
+        self.camera_loading_dialog.reset_for_retry()
+        
+        # 잠시 대기 후 재시도
+        QTimer.singleShot(500, self.initialize_camera)
+    
+    def finish_initialization(self):
+        """카메라 초기화 완료 후 게임 초기화를 마무리"""
+        # 로딩 다이얼로그 닫기
+        self.camera_loading_dialog.close()
+        
+        # 게임 초기화 및 UI 설정
+        self.init_game()
+        self.setup_players_ui()
+        self.init_round()
         
         # 화면 보기 버튼 추가
         self.view_button = QPushButton("화면 보기", self)
@@ -401,6 +443,7 @@ class PokerGame(QWidget):
         """)
         self.camera_view_label.hide()
 
+        # 게임 초기화 완료
         self.initialization_complete = True
         self.showFullScreen()
 

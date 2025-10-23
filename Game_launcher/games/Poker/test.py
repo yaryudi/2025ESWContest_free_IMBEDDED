@@ -274,10 +274,11 @@ def process_card_worker(model_path, warped_image):
         return "Unknown"
 
 class FrameCapture:
-    def __init__(self, device_id=0, codec='MJPG'):
+    def __init__(self, device_id=0, codec='MJPG', loading_callback=None):
         self.device_id = device_id
         self.codec = codec  # 'MJPG' 또는 'YUYV'
         self.cap = None
+        self.loading_callback = loading_callback  # 로딩 콜백 함수
         self._initialize_camera()
     
     def _force_close_camera(self):
@@ -328,8 +329,14 @@ class FrameCapture:
             try:
                 print(f"카메라 초기화 시작... (시도 {init_attempt + 1}/{max_init_attempts})")
                 
+                # 로딩 콜백 호출
+                if self.loading_callback:
+                    self.loading_callback(init_attempt + 1, max_init_attempts, "카메라 연결을 시도하고 있습니다...")
+                
                 # 이전 시도에서 카메라가 열려있다면 닫기
                 if init_attempt > 0:
+                    if self.loading_callback:
+                        self.loading_callback(init_attempt + 1, max_init_attempts, "이전 연결을 정리하고 있습니다...")
                     self._force_close_camera()
                     time.sleep(0.5)  # 리소스 해제 대기
                 
@@ -362,8 +369,12 @@ class FrameCapture:
                 if not camera_opened:
                     if init_attempt < max_init_attempts - 1:
                         print(f"카메라 연결 실패, 재시도 중... ({init_attempt + 1}/{max_init_attempts})")
+                        if self.loading_callback:
+                            self.loading_callback(init_attempt + 1, max_init_attempts, "카메라 연결 실패, 재시도 중...")
                         continue
                     else:
+                        if self.loading_callback:
+                            self.loading_callback(max_init_attempts, max_init_attempts, "카메라 연결에 실패했습니다.")
                         raise RuntimeError(f"웹캠 {self.device_id} 연결 실패")
                 
                 # 카메라가 완전히 열릴 때까지 대기
@@ -558,6 +569,8 @@ class FrameCapture:
                 raise RuntimeError("프레임 읽기 실패")
                 
                 print("카메라 초기화 완료")
+                if self.loading_callback:
+                    self.loading_callback(max_init_attempts, max_init_attempts, "카메라 초기화 완료!")
                 return  # 성공적으로 초기화 완료
                 
             except Exception as e:
@@ -755,9 +768,9 @@ class FrameCapture:
                 self.cap = None
 
 class CardDetector:
-    def __init__(self, num_players=5, device_id=0, codec='MJPG'):
+    def __init__(self, num_players=5, device_id=0, codec='MJPG', loading_callback=None):
         
-        self.cap = FrameCapture(device_id, codec)
+        self.cap = FrameCapture(device_id, codec, loading_callback)
         
         self.model_path = "playingCards.pt"
         self.num_players = num_players
