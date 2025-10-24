@@ -390,8 +390,8 @@ class PokerGame(QWidget):
             self.card_detector = CardDetector(num_players=self.num_players, loading_callback=loading_callback)
             # 성공 시 로딩 다이얼로그 업데이트
             self.camera_loading_dialog.show_success()
-            # 1초 후 로딩 다이얼로그 닫고 게임 초기화
-            QTimer.singleShot(1000, self.finish_initialization)
+            # 2초 후 로딩 다이얼로그 닫고 게임 초기화 (시간을 늘림)
+            QTimer.singleShot(2000, self.finish_initialization)
         except Exception as e:
             # 실패 시 에러 메시지 표시 (재시도/종료 버튼 포함)
             self.camera_loading_dialog.show_error("카메라 연결 실패: 연결 상태를 다시 확인해주세요.")
@@ -406,8 +406,11 @@ class PokerGame(QWidget):
     
     def finish_initialization(self):
         """카메라 초기화 완료 후 게임 초기화를 마무리"""
+        print("게임 초기화 시작...")
+        
         # 로딩 다이얼로그 닫기 및 정리
         if hasattr(self, 'camera_loading_dialog') and self.camera_loading_dialog:
+            print("로딩 다이얼로그 닫는 중...")
             self.camera_loading_dialog.close()
             self.camera_loading_dialog.deleteLater()
             self.camera_loading_dialog = None
@@ -415,10 +418,22 @@ class PokerGame(QWidget):
         # UI 업데이트 강제 실행
         QApplication.processEvents()
         
+        # 잠시 대기 (UI 정리 시간 확보)
+        QTimer.singleShot(100, self._continue_initialization)
+    
+    def _continue_initialization(self):
+        """게임 초기화를 계속 진행"""
+        print("게임 UI 초기화 중...")
+        
         # 게임 초기화 및 UI 설정
         self.init_game()
+        print("init_game 완료")
+        
         self.setup_players_ui()
+        print("setup_players_ui 완료")
+        
         self.init_round()
+        print("init_round 완료")
         
         # 화면 보기 버튼 추가
         self.view_button = QPushButton("화면 보기", self)
@@ -457,6 +472,7 @@ class PokerGame(QWidget):
         
         # 전체화면 표시
         self.showFullScreen()
+        print("전체화면 표시 완료")
 
         # UI 위치 업데이트
         self.update_pot_position()
@@ -464,6 +480,8 @@ class PokerGame(QWidget):
         
         # 최종 UI 업데이트 강제 실행
         QApplication.processEvents()
+        
+        print("게임 초기화 완료!")
 
     def init_game(self):
         """게임 보드 및 주요 UI 컴포넌트를 초기화합니다."""

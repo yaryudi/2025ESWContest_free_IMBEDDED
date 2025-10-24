@@ -181,7 +181,7 @@ class CameraLoadingDialog(QDialog):
             }
         """)
         self.progress_label.setText("연결 성공!")
-        self.status_label.setText("카메라가 성공적으로 연결되었습니다.")
+        self.status_label.setText("게임을 시작합니다...")
         self.progress_bar.setValue(self.progress_bar.maximum())
         
         # UI 업데이트 강제 실행
@@ -190,8 +190,8 @@ class CameraLoadingDialog(QDialog):
         
         # 다이얼로그를 최상위에서 제거하여 게임 UI가 표시될 수 있도록 함
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
-        self.raise_()
-        self.activateWindow()
+        self.lower()  # 다이얼로그를 뒤로 보내기
+        QApplication.processEvents()
     
     def reset_for_retry(self):
         """재시도를 위해 다이얼로그를 초기 상태로 리셋"""
