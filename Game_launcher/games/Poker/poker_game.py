@@ -297,27 +297,19 @@ class PokerGame(QWidget):
     
     def __init__(self, num_players):
         super().__init__()
-        # 기본 UI 설정
-        self.card_width = 80  # 카드 슬롯 크기
-        self.card_height = 112
+        
+        # 기본 창 설정만 먼저
         self.setWindowTitle("텍사스 홀덤 포커")
         self.setMinimumSize(1920, 1080)
         self.resize(1920, 1080)
         self.setStyleSheet("background-color: #053311;")
 
-        self.initialization_complete = False
-
-        # 게임 상태 변수 초기화
+        # 게임 상태 변수만 초기화 (UI는 아직 생성하지 않음)
         self.num_players = num_players
         self.starting_chips = 10000
         self.chips = [self.starting_chips] * num_players
-        self.player_hands = [[] for _ in range(num_players)]  # 빈 리스트로 초기화
-        self.community_cards = [None] * 5  # None으로 초기화
-        self.player_labels = []
-        self.bet_labels = []
-        self.chip_labels = []
-        self.total_bet_labels = []
-        self.action_buttons = []
+        self.player_hands = [[] for _ in range(num_players)]
+        self.community_cards = [None] * 5
         
         # 베팅 관련 변수들
         self.player_bets = [0] * num_players
@@ -334,30 +326,28 @@ class PokerGame(QWidget):
         self.big_blind = 200
         self.total_pot = 0
         self.current_round_pot = 0
-        self.accumulated_pot = 0  # 누적된 총 팟
+        self.accumulated_pot = 0
 
         # 포지션 설정
-        self.sb_index = 0  # SB는 0번 플레이어
-        self.bb_index = 1  # BB는 1번 플레이어
-        self.utg_index = 2  # UTG는 2번 플레이어
-        
-        # 현재 턴 설정
+        self.sb_index = 0
+        self.bb_index = 1
+        self.utg_index = 2
         self.current_turn = self.utg_index if self.num_players > 3 else self.sb_index
 
-        # 팟 효과 관련 변수
+        # 효과 관련 변수들
         self.pot_animation_timer = None
         self.pot_animation_offset = 0
         self.pot_animation_direction = 1
         self.pot_animation_intensity = 0
-
-        # 쇼다운 효과 관련 변수
         self.showdown_effect_timer = None
         self.showdown_alpha = 0
         self.showdown_overlay = None
         self.showdown_text = None
-
-        # 쇼다운 상태 변수
         self.is_showdown = False
+
+        # UI 초기화 상태
+        self.initialization_complete = False
+        self.ui_initialized = False
 
         # 창을 화면 중앙에 배치
         qr = self.frameGeometry()
@@ -390,8 +380,8 @@ class PokerGame(QWidget):
             self.card_detector = CardDetector(num_players=self.num_players, loading_callback=loading_callback)
             # 성공 시 로딩 다이얼로그 업데이트
             self.camera_loading_dialog.show_success()
-            # 2초 후 로딩 다이얼로그 닫고 게임 초기화 (시간을 늘림)
-            QTimer.singleShot(2000, self.finish_initialization)
+            # 1초 후 로딩 다이얼로그 닫고 게임 초기화
+            QTimer.singleShot(1000, self.finish_initialization)
         except Exception as e:
             # 실패 시 에러 메시지 표시 (재시도/종료 버튼 포함)
             self.camera_loading_dialog.show_error("카메라 연결 실패: 연결 상태를 다시 확인해주세요.")
@@ -406,11 +396,8 @@ class PokerGame(QWidget):
     
     def finish_initialization(self):
         """카메라 초기화 완료 후 게임 초기화를 마무리"""
-        print("게임 초기화 시작...")
-        
         # 로딩 다이얼로그 닫기 및 정리
         if hasattr(self, 'camera_loading_dialog') and self.camera_loading_dialog:
-            print("로딩 다이얼로그 닫는 중...")
             self.camera_loading_dialog.close()
             self.camera_loading_dialog.deleteLater()
             self.camera_loading_dialog = None
@@ -418,22 +405,16 @@ class PokerGame(QWidget):
         # UI 업데이트 강제 실행
         QApplication.processEvents()
         
-        # 잠시 대기 (UI 정리 시간 확보)
-        QTimer.singleShot(100, self._continue_initialization)
-    
-    def _continue_initialization(self):
-        """게임 초기화를 계속 진행"""
-        print("게임 UI 초기화 중...")
+        # UI 초기화 상태 확인
+        if not self.ui_initialized:
+            # 모든 UI 요소들을 처음부터 생성
+            self.initialize_ui()
+            self.ui_initialized = True
         
         # 게임 초기화 및 UI 설정
         self.init_game()
-        print("init_game 완료")
-        
         self.setup_players_ui()
-        print("setup_players_ui 완료")
-        
         self.init_round()
-        print("init_round 완료")
         
         # 화면 보기 버튼 추가
         self.view_button = QPushButton("화면 보기", self)
@@ -472,7 +453,6 @@ class PokerGame(QWidget):
         
         # 전체화면 표시
         self.showFullScreen()
-        print("전체화면 표시 완료")
 
         # UI 위치 업데이트
         self.update_pot_position()
@@ -480,8 +460,20 @@ class PokerGame(QWidget):
         
         # 최종 UI 업데이트 강제 실행
         QApplication.processEvents()
+
+    def initialize_ui(self):
+        """UI 요소들을 초기화합니다."""
+        # 카드 크기 설정
+        self.card_width = 80
+        self.card_height = 112
         
-        print("게임 초기화 완료!")
+        # UI 요소 리스트 초기화
+        self.player_labels = []
+        self.bet_labels = []
+        self.chip_labels = []
+        self.total_bet_labels = []
+        self.action_buttons = []
+        self.name_labels = []
 
     def init_game(self):
         """게임 보드 및 주요 UI 컴포넌트를 초기화합니다."""
@@ -813,7 +805,6 @@ class PokerGame(QWidget):
             self.action_buttons.append(buttons)
 
     def resizeEvent(self, event):
-
         if not hasattr(self, 'initialization_complete') or not self.initialization_complete:
             super().resizeEvent(event)
             return
