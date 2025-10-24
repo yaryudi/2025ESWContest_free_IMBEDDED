@@ -412,7 +412,12 @@ class PokerGame(QWidget):
         # 로딩 다이얼로그 닫기
         self.camera_loading_dialog.close()
         
-        # 게임 초기화 및 UI 설정
+        # 게임 창을 먼저 표시하고 크기 설정
+        self.show()
+        self.setFixedSize(1920, 1080)
+        QApplication.processEvents()  # UI 업데이트 강제 실행
+        
+        # 게임 초기화 및 UI 설정 (창이 표시된 상태에서)
         self.init_game()
         self.setup_players_ui()
         self.init_round()
@@ -449,13 +454,8 @@ class PokerGame(QWidget):
         # 게임 초기화 완료
         self.initialization_complete = True
         
-        # 창 크기를 명시적으로 설정 (UI 위치 계산을 위해)
-        self.setFixedSize(1920, 1080)
-        QApplication.processEvents()  # UI 업데이트 강제 실행
-        
-        # 창을 화면 중앙에 배치하고 표시
+        # 창을 화면 중앙에 배치하고 전체화면으로 표시
         self.center_on_screen()
-        self.show()
         self.showFullScreen()
         
         # 창 활성화 및 포커스 설정
@@ -465,10 +465,6 @@ class PokerGame(QWidget):
 
         self.update_pot_position()
         self.reposition_players()
-        
-        # 창 크기를 원래대로 되돌리기 (전체화면을 위해)
-        self.setMinimumSize(1920, 1080)
-        self.resize(1920, 1080)
 
     def center_on_screen(self):
         """창을 화면 중앙에 배치합니다."""
