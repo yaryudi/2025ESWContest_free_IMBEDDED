@@ -367,6 +367,12 @@ class PokerGame(QWidget):
         
         # 게임 UI 먼저 생성 (카메라 초기화와 독립적으로)
         self.init_game()
+        
+        # 창 크기를 명시적으로 설정 (UI 위치 계산을 위해)
+        self.setFixedSize(1920, 1080)
+        QApplication.processEvents()  # UI 업데이트 강제 실행
+        
+        # 이제 UI 위치 설정
         self.setup_players_ui()
         
         # 창을 처음에는 숨김 (카메라 로딩 완료 후 표시)
@@ -452,6 +458,10 @@ class PokerGame(QWidget):
 
         # 게임 초기화 완료
         self.initialization_complete = True
+        
+        # 창 크기를 원래대로 되돌리기 (전체화면을 위해)
+        self.setMinimumSize(1920, 1080)
+        self.resize(1920, 1080)
         
         # 창을 화면 중앙에 배치하고 표시
         self.center_on_screen()
@@ -665,12 +675,8 @@ class PokerGame(QWidget):
         # 커뮤니티 카드 컨테이너 중심 좌표 계산 (카드 슬롯용)
         center_x = self.width() // 2
         center_y = self.height() // 2
-        
-        # 커뮤니티 컨테이너 크기 직접 계산 (창이 숨겨진 상태에서도 정확한 크기 사용)
-        card_spacing = 20
-        comm_width = (self.card_width * 5) + (card_spacing * 4) + 20  # 카드 5장 + 간격 4개 + 좌우 패딩
-        comm_height = self.card_height + 20  # 카드 높이 + 상하 패딩
-        
+        comm_width = self.community_container.width()
+        comm_height = self.community_container.height()
         # 커뮤니티 창을 창의 세로 중앙에 배치
         community_y = (self.height() - comm_height) // 2
         community_x = center_x - comm_width // 2 - self.card_width - 5
@@ -829,12 +835,8 @@ class PokerGame(QWidget):
         # 커뮤니티 카드 컨테이너 위치 조정
         offset_y = 75
         if hasattr(self, 'community_container') and self.community_container:
-            # 커뮤니티 컨테이너 크기 직접 계산
-            comm_width = (self.card_width * 5) + (20 * 4) + 20  # 카드 5장 + 간격 4개 + 좌우 패딩
-            comm_height = self.card_height + 20  # 카드 높이 + 상하 패딩
-            
             community_y = center_y - 120 + offset_y  # 커뮤니티 창의 위치를 약간 위로 조정
-            community_x = center_x - comm_width // 2
+            community_x = center_x - self.community_container.width() // 2
             self.community_container.move(community_x, community_y)
         else:
             community_x = 0
@@ -873,11 +875,7 @@ class PokerGame(QWidget):
 
         # 메시지 라벨을 오른쪽 가운데에 배치
         if hasattr(self, 'message_view') and self.message_view and hasattr(self, 'community_container') and self.community_container and hasattr(self, 'rotated_message_label') and self.rotated_message_label:
-            # 커뮤니티 컨테이너 크기 직접 계산
-            comm_width = (self.card_width * 5) + (20 * 4) + 20  # 카드 5장 + 간격 4개 + 좌우 패딩
-            comm_height = self.card_height + 20  # 카드 높이 + 상하 패딩
-            
-            message_x = community_x + comm_width + 50  # 커뮤니티 카드 오른쪽에 50px 간격
+            message_x = community_x + self.community_container.width() + 50  # 커뮤니티 카드 오른쪽에 50px 간격
             # 회전된 메시지 라벨을 위한 여백 추가
             padding = 40
             label_w = self.rotated_message_label.width()
@@ -885,7 +883,7 @@ class PokerGame(QWidget):
             view_size = max(label_w, label_h) + padding * 2
 
             # 메시지 뷰의 중앙이 커뮤니티 카드 컨테이너의 중앙에 오도록
-            community_center_y = community_y + comm_height // 2
+            community_center_y = community_y + self.community_container.height() // 2
             message_y = community_center_y - (view_size // 2)
 
             self.message_view.setGeometry(message_x, message_y, view_size, view_size)
@@ -925,11 +923,8 @@ class PokerGame(QWidget):
         # 카드 슬롯은 중앙 레이아웃, 나머지 UI는 기존 위치
         center_x = self.width() // 2
         center_y = self.height() // 2
-        
-        # 커뮤니티 컨테이너 크기 직접 계산
-        comm_width = (self.card_width * 5) + (card_spacing * 4) + 20  # 카드 5장 + 간격 4개 + 좌우 패딩
-        comm_height = self.card_height + 20  # 카드 높이 + 상하 패딩
-        
+        comm_width = self.community_container.width()
+        comm_height = self.community_container.height()
         # 커뮤니티 창을 창의 세로 중앙에 배치
         community_y = (self.height() - comm_height) // 2
         community_x = center_x - comm_width // 2 - self.card_width - 5
