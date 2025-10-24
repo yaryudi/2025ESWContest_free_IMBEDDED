@@ -6,6 +6,7 @@
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton
 from PyQt5.QtGui import QFont, QKeyEvent
 from PyQt5.QtCore import Qt
+from camera_loading_dialog import CameraLoadingDialog
 from poker_game import PokerGame
 
 
@@ -96,5 +97,17 @@ class PlayerCountDialog(QWidget):
     def accept(self):
         """선택된 플레이어 수로 게임을 시작합니다."""
         self.close()
+        
+        # 카메라 로딩 다이얼로그 표시
+        self.camera_loading_dialog = CameraLoadingDialog()
+        self.camera_loading_dialog.player_count = self.player_count  # 플레이어 수 전달
+        self.camera_loading_dialog.show()
+        
+        # 카메라 초기화 완료 후 게임 시작
+        self.camera_loading_dialog.camera_initialized.connect(self.start_game)
+        
+    def start_game(self):
+        """카메라 초기화 완료 후 게임을 시작합니다."""
+        self.camera_loading_dialog.close()
         self.game = PokerGame(self.player_count)
         self.game.show()

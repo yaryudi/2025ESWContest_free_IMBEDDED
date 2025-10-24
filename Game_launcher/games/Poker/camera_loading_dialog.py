@@ -3,18 +3,22 @@
 카메라 연결 및 초기화 과정을 사용자에게 보여주는 로딩 창입니다.
 """
 
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QProgressBar, QHBoxLayout, QPushButton
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QProgressBar, QHBoxLayout, QPushButton, QApplication
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal
 from PyQt5.QtGui import QFont
+from test import CardDetector
 
 
 class CameraLoadingDialog(QDialog):
+    camera_initialized = pyqtSignal()  # 카메라 초기화 완료 시그널
+    
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.player_count = 2  # 기본 플레이어 수
         self.setWindowTitle("카메라 초기화")
-        self.setFixedSize(450, 250)  # 크기를 늘려서 텍스트가 잘리지 않도록 함
+        self.setFixedSize(450, 250)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Dialog)
-        self.setModal(False)  # 모달 다이얼로그로 설정
+        self.setModal(False)  # 모달 다이얼로그 비활성화
         
         # 전체 창 스타일 설정
         self.setStyleSheet("""
@@ -27,8 +31,8 @@ class CameraLoadingDialog(QDialog):
         
         # 레이아웃 설정
         layout = QVBoxLayout()
-        layout.setSpacing(15)  # 간격을 줄여서 공간 확보
-        layout.setContentsMargins(25, 25, 25, 25)  # 여백을 줄여서 공간 확보
+        layout.setSpacing(15)
+        layout.setContentsMargins(25, 25, 25, 25)
         
         # 제목 라벨
         self.title_label = QLabel("카메라 초기화 중...")
@@ -77,8 +81,8 @@ class CameraLoadingDialog(QDialog):
         self.status_label = QLabel("카메라 연결을 시도하고 있습니다...")
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setFont(QFont("Arial", 12))
-        self.status_label.setWordWrap(True)  # 텍스트 래핑 활성화
-        self.status_label.setMinimumHeight(40)  # 최소 높이 설정
+        self.status_label.setWordWrap(True)
+        self.status_label.setMinimumHeight(40)
         self.status_label.setStyleSheet("""
             QLabel {
                 color: #BDC3C7;
@@ -91,7 +95,7 @@ class CameraLoadingDialog(QDialog):
         # 버튼 레이아웃 (처음에는 숨김)
         self.button_layout = QHBoxLayout()
         self.button_layout.setSpacing(15)
-        self.button_layout.setContentsMargins(0, 10, 0, 0)  # 상단 여백 추가
+        self.button_layout.setContentsMargins(0, 10, 0, 0)
         
         # 재시도 버튼
         self.retry_button = QPushButton("재시도")
@@ -113,6 +117,7 @@ class CameraLoadingDialog(QDialog):
             }
         """)
         self.retry_button.hide()
+        self.retry_button.clicked.connect(self.retry_initialization)
         self.button_layout.addWidget(self.retry_button)
         
         # 종료 버튼
@@ -135,6 +140,7 @@ class CameraLoadingDialog(QDialog):
             }
         """)
         self.exit_button.hide()
+        self.exit_button.clicked.connect(self.close)
         self.button_layout.addWidget(self.exit_button)
         
         layout.addLayout(self.button_layout)
@@ -144,20 +150,40 @@ class CameraLoadingDialog(QDialog):
         # 중앙에 위치시키기
         self.center_on_screen()
         
+        # 카메라 초기화 시작
+        QTimer.singleShot(200, self.start_camera_initialization)
+        
     def center_on_screen(self):
         """화면 중앙에 다이얼로그 위치"""
-        if self.parent():
-            parent_geometry = self.parent().geometry()
-            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
-            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
-            self.move(x, y)
-        else:
-            # 부모가 없는 경우 화면 중앙에 위치
-            from PyQt5.QtWidgets import QApplication
-            screen = QApplication.primaryScreen().availableGeometry()
-            x = (screen.width() - self.width()) // 2
-            y = (screen.height() - self.height()) // 2
-            self.move(x, y)
+        screen = QApplication.primaryScreen().availableGeometry()
+        x = (screen.width() - self.width()) // 2
+        y = (screen.height() - self.height()) // 2
+        self.move(x, y)
+    
+    def start_camera_initialization(self):
+        """카메라 초기화를 시작합니다."""
+        # 로딩 콜백 함수 정의
+        def loading_callback(attempt, max_attempts, status_message):
+            self.update_progress(attempt, max_attempts, status_message)
+        
+        # 카드 감지기 초기화 (로딩 콜백 포함)
+        try:
+            self.card_detector = CardDetector(num_players=self.player_count, loading_callback=loading_callback)
+            # 성공 시 로딩 다이얼로그 업데이트
+            self.show_success()
+            # 1초 후 시그널 발생
+            QTimer.singleShot(1000, self.camera_initialized.emit)
+        except Exception as e:
+            # 실패 시 에러 메시지 표시 (재시도/종료 버튼 포함)
+            self.show_error("카메라 연결 실패: 연결 상태를 다시 확인해주세요.")
+    
+    def retry_initialization(self):
+        """카메라 초기화 재시도"""
+        # 다이얼로그를 초기 상태로 리셋
+        self.reset_for_retry()
+        
+        # 잠시 대기 후 재시도
+        QTimer.singleShot(500, self.start_camera_initialization)
     
     def update_progress(self, attempt, max_attempts, status_message=""):
         """진행률 업데이트"""
@@ -168,7 +194,6 @@ class CameraLoadingDialog(QDialog):
             self.status_label.setText(status_message)
         
         # UI 업데이트 강제 실행
-        from PyQt5.QtWidgets import QApplication
         QApplication.processEvents()
     
     def show_success(self):
@@ -185,7 +210,6 @@ class CameraLoadingDialog(QDialog):
         self.progress_bar.setValue(self.progress_bar.maximum())
         
         # UI 업데이트 강제 실행
-        from PyQt5.QtWidgets import QApplication
         QApplication.processEvents()
     
     def reset_for_retry(self):
@@ -206,7 +230,6 @@ class CameraLoadingDialog(QDialog):
         self.exit_button.hide()
         
         # UI 업데이트 강제 실행
-        from PyQt5.QtWidgets import QApplication
         QApplication.processEvents()
     
     def show_error(self, error_message="카메라 연결 실패: 연결 상태를 다시 확인해주세요."):
@@ -226,7 +249,4 @@ class CameraLoadingDialog(QDialog):
         self.exit_button.show()
         
         # UI 업데이트 강제 실행
-        from PyQt5.QtWidgets import QApplication
         QApplication.processEvents()
-
-
