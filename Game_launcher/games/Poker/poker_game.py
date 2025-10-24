@@ -409,6 +409,9 @@ class PokerGame(QWidget):
         # 로딩 다이얼로그 닫기
         self.camera_loading_dialog.close()
         
+        # UI 업데이트 강제 실행
+        QApplication.processEvents()
+        
         # 게임 초기화 및 UI 설정
         self.init_game()
         self.setup_players_ui()
@@ -443,12 +446,23 @@ class PokerGame(QWidget):
         """)
         self.camera_view_label.hide()
 
+        # UI 업데이트 강제 실행
+        QApplication.processEvents()
+        
         # 게임 초기화 완료
         self.initialization_complete = True
+        
+        # 전체화면 표시 전에 UI 업데이트 강제 실행
+        QApplication.processEvents()
         self.showFullScreen()
-
+        
+        # 전체화면 표시 후 UI 위치 업데이트
+        QApplication.processEvents()
         self.update_pot_position()
         self.reposition_players()
+        
+        # 최종 UI 업데이트 강제 실행
+        QApplication.processEvents()
 
     def init_game(self):
         """게임 보드 및 주요 UI 컴포넌트를 초기화합니다."""
@@ -780,7 +794,7 @@ class PokerGame(QWidget):
             self.action_buttons.append(buttons)
 
     def resizeEvent(self, event):
-
+        # 초기화가 완료되지 않았으면 리사이즈 이벤트 무시
         if not hasattr(self, 'initialization_complete') or not self.initialization_complete:
             super().resizeEvent(event)
             return
@@ -865,7 +879,10 @@ class PokerGame(QWidget):
         self.reposition_players()
 
     def reposition_players(self):
-
+        # 초기화가 완료되지 않았으면 리포지셔닝 무시
+        if not hasattr(self, 'initialization_complete') or not self.initialization_complete:
+            return
+            
         if not (hasattr(self, 'community_container') and self.community_container and
                 hasattr(self, 'player_labels') and self.player_labels and
                 hasattr(self, 'bet_labels') and self.bet_labels and

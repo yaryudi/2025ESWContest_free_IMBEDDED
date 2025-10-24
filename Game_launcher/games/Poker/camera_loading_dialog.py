@@ -14,7 +14,7 @@ class CameraLoadingDialog(QDialog):
         self.setWindowTitle("카메라 초기화")
         self.setFixedSize(450, 250)  # 크기를 늘려서 텍스트가 잘리지 않도록 함
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Dialog)
-        self.setModal(True)  # 모달 다이얼로그로 설정
+        self.setModal(False)  # 모달 다이얼로그 해제
         
         # 전체 창 스타일 설정
         self.setStyleSheet("""
