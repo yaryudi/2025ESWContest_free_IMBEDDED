@@ -365,11 +365,14 @@ class PokerGame(QWidget):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
         
-        # 게임 UI 먼저 생성 (카메라 초기화와 독립적으로)
+        # 창을 먼저 표시해서 크기가 제대로 설정되도록 함
+        self.show()
+        
+        # 게임 UI 생성 (창 크기가 제대로 설정된 후)
         self.init_game()
         self.setup_players_ui()
         
-        # 창을 처음에는 숨김 (카메라 로딩 완료 후 표시)
+        # 창을 다시 숨김 (카메라 로딩 완료 후 다시 표시)
         self.hide()
 
         # 카메라 로딩 다이얼로그 표시
@@ -453,7 +456,7 @@ class PokerGame(QWidget):
         # 게임 초기화 완료
         self.initialization_complete = True
         
-        # 창을 화면 중앙에 배치하고 표시
+        # 창을 화면 중앙에 배치하고 표시 (이미 UI는 생성됨)
         self.center_on_screen()
         self.show()
         self.showFullScreen()
