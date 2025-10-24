@@ -298,11 +298,15 @@ class PokerGame(QWidget):
     def __init__(self, num_players):
         super().__init__()
         
-        # 기본 창 설정만 먼저
+        # 기본 창 설정만 먼저 (UI 요소는 아직 생성하지 않음)
         self.setWindowTitle("텍사스 홀덤 포커")
         self.setMinimumSize(1920, 1080)
         self.resize(1920, 1080)
         self.setStyleSheet("background-color: #053311;")
+
+        # 초기화 상태 플래그
+        self.initialization_complete = False
+        self.camera_initialized = False
 
         # 게임 상태 변수만 초기화 (UI는 아직 생성하지 않음)
         self.num_players = num_players
@@ -332,6 +336,8 @@ class PokerGame(QWidget):
         self.sb_index = 0
         self.bb_index = 1
         self.utg_index = 2
+        
+        # 현재 턴 설정
         self.current_turn = self.utg_index if self.num_players > 3 else self.sb_index
 
         # 효과 관련 변수들
@@ -345,17 +351,13 @@ class PokerGame(QWidget):
         self.showdown_text = None
         self.is_showdown = False
 
-        # UI 초기화 상태
-        self.initialization_complete = False
-        self.ui_initialized = False
-
         # 창을 화면 중앙에 배치
         qr = self.frameGeometry()
         cp = self.screen().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
-        # 카메라 로딩 다이얼로그 표시
+        # 카메라 로딩 다이얼로그 표시 (가장 우선)
         self.camera_loading_dialog = CameraLoadingDialog(self)
         self.camera_loading_dialog.show()
         
@@ -396,6 +398,9 @@ class PokerGame(QWidget):
     
     def finish_initialization(self):
         """카메라 초기화 완료 후 게임 초기화를 마무리"""
+        # 카메라 초기화 완료 플래그 설정
+        self.camera_initialized = True
+        
         # 로딩 다이얼로그 닫기 및 정리
         if hasattr(self, 'camera_loading_dialog') and self.camera_loading_dialog:
             self.camera_loading_dialog.close()
@@ -405,11 +410,8 @@ class PokerGame(QWidget):
         # UI 업데이트 강제 실행
         QApplication.processEvents()
         
-        # UI 초기화 상태 확인
-        if not self.ui_initialized:
-            # 모든 UI 요소들을 처음부터 생성
-            self.initialize_ui()
-            self.ui_initialized = True
+        # 이제 모든 UI 요소들을 생성
+        self.initialize_ui_elements()
         
         # 게임 초기화 및 UI 설정
         self.init_game()
@@ -461,7 +463,7 @@ class PokerGame(QWidget):
         # 최종 UI 업데이트 강제 실행
         QApplication.processEvents()
 
-    def initialize_ui(self):
+    def initialize_ui_elements(self):
         """UI 요소들을 초기화합니다."""
         # 카드 크기 설정
         self.card_width = 80
@@ -805,11 +807,15 @@ class PokerGame(QWidget):
             self.action_buttons.append(buttons)
 
     def resizeEvent(self, event):
-        if not hasattr(self, 'initialization_complete') or not self.initialization_complete:
-            super().resizeEvent(event)
-            return
-
         super().resizeEvent(event)
+        
+        # 카메라 초기화가 완료되지 않았으면 UI 요소들을 처리하지 않음
+        if not hasattr(self, 'camera_initialized') or not self.camera_initialized:
+            return
+            
+        # 초기화가 완료되지 않았으면 UI 요소들을 처리하지 않음
+        if not hasattr(self, 'initialization_complete') or not self.initialization_complete:
+            return
 
         if hasattr(self, 'board') and self.board:
             self.board.setGeometry(0, 0, self.width(), self.height())  # 창 전체 사용
