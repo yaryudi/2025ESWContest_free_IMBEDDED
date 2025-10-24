@@ -364,9 +364,6 @@ class PokerGame(QWidget):
         cp = self.screen().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
-        
-        # 창을 처음에는 숨김 (카메라 로딩 완료 후 표시)
-        self.hide()
 
         # 카메라 로딩 다이얼로그 표시
         self.camera_loading_dialog = CameraLoadingDialog(self)
@@ -412,12 +409,7 @@ class PokerGame(QWidget):
         # 로딩 다이얼로그 닫기
         self.camera_loading_dialog.close()
         
-        # 게임 창을 먼저 표시하고 크기 설정
-        self.show()
-        self.setFixedSize(1920, 1080)
-        QApplication.processEvents()  # UI 업데이트 강제 실행
-        
-        # 게임 초기화 및 UI 설정 (창이 표시된 상태에서)
+        # 게임 초기화 및 UI 설정
         self.init_game()
         self.setup_players_ui()
         self.init_round()
@@ -454,8 +446,7 @@ class PokerGame(QWidget):
         # 게임 초기화 완료
         self.initialization_complete = True
         
-        # 창을 화면 중앙에 배치하고 전체화면으로 표시
-        self.center_on_screen()
+        # 전체화면으로 전환
         self.showFullScreen()
         
         # 창 활성화 및 포커스 설정
