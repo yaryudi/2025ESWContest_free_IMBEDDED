@@ -295,7 +295,7 @@ class GameExitDialog(QDialog):
 class PokerGame(QWidget):
     """텍사스 홀덤 포커 게임의 메인 클래스"""
     
-    def __init__(self, num_players):
+    def __init__(self, num_players, card_detector=None):
         super().__init__()
         # 기본 UI 설정
         self.card_width = 80  # 카드 슬롯 크기
@@ -306,6 +306,9 @@ class PokerGame(QWidget):
         self.setStyleSheet("background-color: #053311;")
 
         self.initialization_complete = False
+        
+        # 카드 감지기 설정
+        self.card_detector = card_detector
 
         # 게임 상태 변수 초기화
         self.num_players = num_players
@@ -1962,6 +1965,10 @@ class PokerGame(QWidget):
 
     def get_flop_cards(self):
         """플랍 카드 3장을 인식하고 저장합니다."""
+        if not self.card_detector:
+            self.update_message("카드 감지기가 초기화되지 않았습니다.")
+            return False
+            
         max_retries = 3
         retry_count = 0
         self.update_message("플랍 카드 인식 중...")
@@ -2028,6 +2035,10 @@ class PokerGame(QWidget):
 
     def get_turn_card(self):
         """턴 카드 1장을 인식하고 저장합니다."""
+        if not self.card_detector:
+            self.update_message("카드 감지기가 초기화되지 않았습니다.")
+            return False
+            
         max_retries = 3
         retry_count = 0
         self.update_message("턴 카드 인식 중...")
@@ -2081,6 +2092,10 @@ class PokerGame(QWidget):
 
     def get_river_card(self):
         """리버 카드 1장을 인식하고 저장합니다."""
+        if not self.card_detector:
+            self.update_message("카드 감지기가 초기화되지 않았습니다.")
+            return False
+            
         max_retries = 3
         retry_count = 0
         self.update_message("리버 카드 인식 중...")
@@ -2134,6 +2149,10 @@ class PokerGame(QWidget):
 
     def get_player_cards(self):
         """쇼다운 시 플레이어 카드를 인식하고 저장합니다."""
+        if not self.card_detector:
+            self.update_message("카드 감지기가 초기화되지 않았습니다.")
+            return False
+            
         max_retries = 3
         retry_count = 0
         self.update_message("플레이어 카드 인식 중...")
@@ -2239,6 +2258,10 @@ class PokerGame(QWidget):
 
     def show_camera_view(self):
         """카메라로 캡처한 화면을 3초간 보여줍니다."""
+        if not self.card_detector:
+            self.update_message("카메라가 초기화되지 않았습니다.")
+            return
+            
         try:
             # 카메라로 이미지 캡처
             ret, image = self.card_detector.cap.read()

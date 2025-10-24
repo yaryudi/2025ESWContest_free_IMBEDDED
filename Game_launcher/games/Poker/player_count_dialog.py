@@ -109,5 +109,5 @@ class PlayerCountDialog(QWidget):
     def start_game(self):
         """카메라 초기화 완료 후 게임을 시작합니다."""
         self.camera_loading_dialog.close()
-        self.game = PokerGame(self.player_count)
+        self.game = PokerGame(self.player_count, self.camera_loading_dialog.card_detector)
         self.game.show()
