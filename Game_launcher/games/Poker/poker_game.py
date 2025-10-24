@@ -367,17 +367,64 @@ class PokerGame(QWidget):
         
         # 게임 UI 먼저 생성 (카메라 초기화와 독립적으로)
         self.init_game()
-        
-        # 창 크기를 명시적으로 설정 (UI 위치 계산을 위해)
-        self.setFixedSize(1920, 1080)
-        QApplication.processEvents()  # UI 업데이트 강제 실행
-        
-        # 이제 UI 위치 설정
         self.setup_players_ui()
         
-        # 창을 처음에는 숨김 (카메라 로딩 완료 후 표시)
-        self.hide()
+        # 게임 초기화 완료
+        self.initialization_complete = True
+        
+        # 창을 화면 중앙에 배치하고 표시
+        self.center_on_screen()
+        self.show()
+        self.showFullScreen()
+        
+        # 창 활성화 및 포커스 설정
+        self.activateWindow()
+        self.raise_()
+        self.setFocus()
 
+        self.update_pot_position()
+        self.reposition_players()
+        
+        # 게임 라운드 초기화
+        self.init_round()
+        
+        # 화면 보기 버튼 추가
+        self.view_button = QPushButton("화면 보기", self)
+        self.view_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        self.view_button.clicked.connect(self.show_camera_view)
+        
+        # 버튼 위치 설정 (우측 상단)
+        self.view_button.setGeometry(self.width() - 120, 20, 100, 40)
+
+        # 카메라 뷰를 위한 라벨 추가
+        self.camera_view_label = QLabel(self)
+        self.camera_view_label.setStyleSheet("""
+            background-color: black;
+            border: 2px solid #444;
+            border-radius: 4px;
+        """)
+        self.camera_view_label.hide()
+        
+        # UI 업데이트를 강제로 실행
+        QApplication.processEvents()
+        
+        # 게임이 완전히 표시된 후 카메라 초기화 시작
+        QTimer.singleShot(1000, self.start_camera_initialization)
+        
+    def start_camera_initialization(self):
+        """게임이 완전히 표시된 후 카메라 초기화를 시작합니다."""
         # 카메라 로딩 다이얼로그 표시
         self.camera_loading_dialog = CameraLoadingDialog(self)
         self.camera_loading_dialog.show()
@@ -422,59 +469,9 @@ class PokerGame(QWidget):
         # 로딩 다이얼로그 닫기
         self.camera_loading_dialog.close()
         
-        # 게임 라운드 초기화 (UI는 이미 생성됨)
-        self.init_round()
-        
-        # 화면 보기 버튼 추가 (아직 없다면)
-        if not hasattr(self, 'view_button'):
-            self.view_button = QPushButton("화면 보기", self)
-            self.view_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #4CAF50;
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #45a049;
-                }
-            """)
-            self.view_button.clicked.connect(self.show_camera_view)
-            
-            # 버튼 위치 설정 (우측 상단)
-            self.view_button.setGeometry(self.width() - 120, 20, 100, 40)
-
-        # 카메라 뷰를 위한 라벨 추가 (아직 없다면)
-        if not hasattr(self, 'camera_view_label'):
-            self.camera_view_label = QLabel(self)
-            self.camera_view_label.setStyleSheet("""
-                background-color: black;
-                border: 2px solid #444;
-                border-radius: 4px;
-            """)
-            self.camera_view_label.hide()
-
-        # 게임 초기화 완료
-        self.initialization_complete = True
-        
-        # 창 크기를 원래대로 되돌리기 (전체화면을 위해)
-        self.setMinimumSize(1920, 1080)
-        self.resize(1920, 1080)
-        
-        # 창을 화면 중앙에 배치하고 표시
-        self.center_on_screen()
-        self.show()
-        self.showFullScreen()
-        
-        # 창 활성화 및 포커스 설정
-        self.activateWindow()
-        self.raise_()
-        self.setFocus()
-
-        self.update_pot_position()
-        self.reposition_players()
+        # 게임이 이미 표시되어 있으므로 추가 작업 불필요
+        # 카메라 초기화만 완료되었음을 알림
+        print("카메라 초기화 완료! 게임을 시작할 수 있습니다.")
 
     def center_on_screen(self):
         """창을 화면 중앙에 배치합니다."""
