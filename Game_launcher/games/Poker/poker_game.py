@@ -365,6 +365,10 @@ class PokerGame(QWidget):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
         
+        # 게임 UI 먼저 생성 (카메라 초기화와 독립적으로)
+        self.init_game()
+        self.setup_players_ui()
+        
         # 창을 처음에는 숨김 (카메라 로딩 완료 후 표시)
         self.hide()
 
@@ -412,39 +416,39 @@ class PokerGame(QWidget):
         # 로딩 다이얼로그 닫기
         self.camera_loading_dialog.close()
         
-        # 게임 초기화 및 UI 설정
-        self.init_game()
-        self.setup_players_ui()
+        # 게임 라운드 초기화 (UI는 이미 생성됨)
         self.init_round()
         
-        # 화면 보기 버튼 추가
-        self.view_button = QPushButton("화면 보기", self)
-        self.view_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-        """)
-        self.view_button.clicked.connect(self.show_camera_view)
-        
-        # 버튼 위치 설정 (우측 상단)
-        self.view_button.setGeometry(self.width() - 120, 20, 100, 40)
+        # 화면 보기 버튼 추가 (아직 없다면)
+        if not hasattr(self, 'view_button'):
+            self.view_button = QPushButton("화면 보기", self)
+            self.view_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #4CAF50;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #45a049;
+                }
+            """)
+            self.view_button.clicked.connect(self.show_camera_view)
+            
+            # 버튼 위치 설정 (우측 상단)
+            self.view_button.setGeometry(self.width() - 120, 20, 100, 40)
 
-        # 카메라 뷰를 위한 라벨 추가
-        self.camera_view_label = QLabel(self)
-        self.camera_view_label.setStyleSheet("""
-            background-color: black;
-            border: 2px solid #444;
-            border-radius: 4px;
-        """)
-        self.camera_view_label.hide()
+        # 카메라 뷰를 위한 라벨 추가 (아직 없다면)
+        if not hasattr(self, 'camera_view_label'):
+            self.camera_view_label = QLabel(self)
+            self.camera_view_label.setStyleSheet("""
+                background-color: black;
+                border: 2px solid #444;
+                border-radius: 4px;
+            """)
+            self.camera_view_label.hide()
 
         # 게임 초기화 완료
         self.initialization_complete = True
