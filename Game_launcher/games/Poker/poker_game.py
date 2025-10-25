@@ -1150,11 +1150,17 @@ class PokerGame(QWidget):
                 self.update_message("베팅이 완료되었습니다. 각 플레이어의 카드를 공개해주세요.")
                 self.next_stage_button.setText("카드 공개")
                 self.next_stage_button.setEnabled(True)
+                # 버튼 클릭 연결 설정
+                self.safe_disconnect_button()
+                self.next_stage_button.clicked.connect(self.show_next_stage)
         else:
             # 다음 라운드로 진행할 준비
             print(f"DEBUG: 다음 라운드로 진행 - {self.current_round}")
             self.next_stage_button.setText("다음 카드 공개")
             self.next_stage_button.setEnabled(True)
+            # 버튼 클릭 연결 설정
+            self.safe_disconnect_button()
+            self.next_stage_button.clicked.connect(self.show_next_stage)
             # 쇼다운 상태가 아닐 때만 일반 메시지 표시
             if not self.is_showdown:
                 self.update_message("모든 플레이어가 행동을 마쳤습니다. 커뮤니티 카드를 공개하세요.")
