@@ -1999,7 +1999,12 @@ class PokerGame(QWidget):
                         self.community_cards[0:3] = valid_cards
                         self.update_message("플랍 카드 인식 완료")
                         QApplication.processEvents()
-                        # 성공 시 버튼을 원래 상태로 복원
+                        # 성공 시 카드 공개 메시지 업데이트
+                        if self.is_showdown:
+                            self.update_message("🎴 쇼다운!\n플랍 공개.\n카드를 모두 오픈!")
+                        else:
+                            self.update_message("🎴 플랍: " + " ".join(self.community_cards[:3]))
+                        # 버튼을 원래 상태로 복원
                         self.restore_button_to_normal()
                         return True
                     else:
@@ -2181,7 +2186,12 @@ class PokerGame(QWidget):
                     self.community_cards[3] = turn_card
                     self.update_message("턴 카드 인식 완료")
                     QApplication.processEvents()
-                    # 성공 시 버튼을 원래 상태로 복원
+                    # 성공 시 카드 공개 메시지 업데이트
+                    if self.is_showdown:
+                        self.update_message("🎴 쇼다운!\n턴 공개.\n카드를 모두 오픈!")
+                    else:
+                        self.update_message("🎴 턴: " + " ".join(self.community_cards[:4]))
+                    # 버튼을 원래 상태로 복원
                     self.restore_button_to_normal()
                     return True
                 else:
@@ -2243,7 +2253,15 @@ class PokerGame(QWidget):
                     self.community_cards[4] = river_card
                     self.update_message("리버 카드 인식 완료")
                     QApplication.processEvents()
-                    # 성공 시 버튼을 원래 상태로 복원
+                    # 성공 시 카드 공개 메시지 업데이트
+                    if self.is_showdown:
+                        self.update_message("🎴 쇼다운!\n리버 공개.\n카드를 모두 오픈!")
+                        # 쇼다운 상태에서는 바로 승자 결정
+                        self.determine_winner()
+                        return True
+                    else:
+                        self.update_message("🎴 리버: " + " ".join(self.community_cards))
+                    # 버튼을 원래 상태로 복원
                     self.restore_button_to_normal()
                     return True
                 else:
