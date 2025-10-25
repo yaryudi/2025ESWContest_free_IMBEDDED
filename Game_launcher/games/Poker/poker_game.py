@@ -1255,6 +1255,9 @@ class PokerGame(QWidget):
         self.last_raiser = -1
         self.acted_players.clear()
 
+        # 카드 공개 버튼 비활성화 (베팅턴 중에는 비활성화)
+        self.next_stage_button.setEnabled(False)
+
         # 메시지 업데이트
         self.update_message(f"River 베팅이 시작됩니다. Player {self.current_turn + 1}의 차례입니다.")
 
