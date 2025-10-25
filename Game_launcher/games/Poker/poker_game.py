@@ -1999,16 +1999,6 @@ class PokerGame(QWidget):
                         self.community_cards[0:3] = valid_cards
                         self.update_message("플랍 카드 인식 완료")
                         QApplication.processEvents()
-                        # 성공 시 카드 공개 메시지 업데이트
-                        if self.is_showdown:
-                            self.update_message("🎴 쇼다운!\n플랍 공개.\n카드를 모두 오픈!")
-                        else:
-                            self.update_message("🎴 플랍: " + " ".join(self.community_cards[:3]))
-                        # 재시도 성공 시에도 일반 성공과 동일한 후처리
-                        self.next_stage_button.setText("다음 카드 공개")
-                        self.next_stage_button.setEnabled(True)
-                        self.safe_disconnect_button()
-                        self.next_stage_button.clicked.connect(self.show_next_stage)
                         return True
                     else:
                         retry_count += 1
@@ -2090,8 +2080,8 @@ class PokerGame(QWidget):
         success = self.get_flop_cards()
         
         if success:
-            # 성공 시 버튼을 원래 상태로 복원
-            self.restore_button_to_normal()
+            # 성공 시 일반적인 게임 진행과 동일하게 처리
+            self.show_next_stage()
         else:
             # 실패 시 다시 재시도 버튼으로 설정
             self.next_stage_button.setText("재시도하기")
@@ -2109,8 +2099,8 @@ class PokerGame(QWidget):
         success = self.get_turn_card()
         
         if success:
-            # 성공 시 버튼을 원래 상태로 복원
-            self.restore_button_to_normal()
+            # 성공 시 일반적인 게임 진행과 동일하게 처리
+            self.show_next_stage()
         else:
             # 실패 시 다시 재시도 버튼으로 설정
             self.next_stage_button.setText("재시도하기")
@@ -2128,8 +2118,8 @@ class PokerGame(QWidget):
         success = self.get_river_card()
         
         if success:
-            # 성공 시 버튼을 원래 상태로 복원
-            self.restore_button_to_normal()
+            # 성공 시 일반적인 게임 진행과 동일하게 처리
+            self.show_next_stage()
         else:
             # 실패 시 다시 재시도 버튼으로 설정
             self.next_stage_button.setText("재시도하기")
@@ -2147,8 +2137,8 @@ class PokerGame(QWidget):
         success = self.get_player_cards()
         
         if success:
-            # 성공 시 버튼을 원래 상태로 복원
-            self.restore_button_to_normal()
+            # 성공 시 일반적인 게임 진행과 동일하게 처리
+            self.show_next_stage()
         else:
             # 실패 시 다시 재시도 버튼으로 설정
             self.next_stage_button.setText("재시도하기")
@@ -2189,16 +2179,6 @@ class PokerGame(QWidget):
                     self.community_cards[3] = turn_card
                     self.update_message("턴 카드 인식 완료")
                     QApplication.processEvents()
-                    # 성공 시 카드 공개 메시지 업데이트
-                    if self.is_showdown:
-                        self.update_message("🎴 쇼다운!\n턴 공개.\n카드를 모두 오픈!")
-                    else:
-                        self.update_message("🎴 턴: " + " ".join(self.community_cards[:4]))
-                    # 재시도 성공 시에도 일반 성공과 동일한 후처리
-                    self.next_stage_button.setText("다음 카드 공개")
-                    self.next_stage_button.setEnabled(True)
-                    self.safe_disconnect_button()
-                    self.next_stage_button.clicked.connect(self.show_next_stage)
                     return True
                 else:
                     retry_count += 1
@@ -2259,19 +2239,6 @@ class PokerGame(QWidget):
                     self.community_cards[4] = river_card
                     self.update_message("리버 카드 인식 완료")
                     QApplication.processEvents()
-                    # 성공 시 카드 공개 메시지 업데이트
-                    if self.is_showdown:
-                        self.update_message("🎴 쇼다운!\n리버 공개.\n카드를 모두 오픈!")
-                        # 쇼다운 상태에서는 바로 승자 결정
-                        self.determine_winner()
-                        return True
-                    else:
-                        self.update_message("🎴 리버: " + " ".join(self.community_cards))
-                    # 재시도 성공 시에도 일반 성공과 동일한 후처리
-                    self.next_stage_button.setText("다음 카드 공개")
-                    self.next_stage_button.setEnabled(True)
-                    self.safe_disconnect_button()
-                    self.next_stage_button.clicked.connect(self.show_next_stage)
                     return True
                 else:
                     retry_count += 1
@@ -2346,8 +2313,6 @@ class PokerGame(QWidget):
                 if all_cards_valid:
                     self.update_message("플레이어 카드 인식 완료")
                     QApplication.processEvents()
-                    # 성공 시 버튼을 원래 상태로 복원
-                    self.restore_button_to_normal()
                     return True
                 else:
                     retry_count += 1
