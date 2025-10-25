@@ -2069,7 +2069,7 @@ class PokerGame(QWidget):
         self.next_stage_button.setText("다음 카드 공개")
         self.next_stage_button.setEnabled(True)
         self.safe_disconnect_button()
-        self.next_stage_button.clicked.connect(self.next_stage)
+        self.next_stage_button.clicked.connect(self.show_next_stage)
 
     def retry_flop_cards(self):
         """플랍 카드 재시도"""
