@@ -1433,7 +1433,7 @@ class PokerGame(QWidget):
         # 다음 단계 버튼을 재시작 버튼으로 변경
         self.next_stage_button.setText("게임 재시작")
         self.next_stage_button.setEnabled(True)
-        self.next_stage_button.clicked.disconnect()  # 기존 연결 해제
+        self.safe_disconnect_button()  # 안전한 disconnect 사용
         self.next_stage_button.clicked.connect(self.restart_game)
 
         # 쇼다운 상태 초기화
@@ -2152,9 +2152,28 @@ class PokerGame(QWidget):
             else:
                 self.update_message("🎴 리버: " + " ".join(self.community_cards))
             
-            # 베팅턴 시작 (기존 성공과 동일)
+            # 기존 성공과 동일한 추가 처리
             self.next_stage_button.setEnabled(False)
             self.start_river_betting()
+            
+            # show_next_stage()에서 실행되는 추가 처리들
+            # 다음 라운드 시작 위치 설정
+            if self.community_stage > 0:  # 플랍 이후
+                self.current_turn = self.get_next_active_player(self.sb_index)
+            else:  # 프리플랍
+                self.current_turn = self.utg_index if self.num_players > 3 else self.sb_index
+
+            # UI 업데이트
+            for i in range(self.num_players):
+                self.update_ui(i)
+
+            # 쇼다운 상태에서는 베팅 버튼을 비활성화하고 다음 단계 버튼만 활성화
+            if self.is_showdown:
+                self.disable_all_buttons()
+                self.next_stage_button.setEnabled(True)
+            else:
+                self.update_ui_for_turn()
+                self.next_stage_button.setEnabled(False)
         else:
             # 실패 시 다시 재시도 버튼으로 설정
             self.next_stage_button.setText("재시도하기")
