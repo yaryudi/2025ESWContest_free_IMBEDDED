@@ -1433,7 +1433,7 @@ class PokerGame(QWidget):
         # 다음 단계 버튼을 재시작 버튼으로 변경
         self.next_stage_button.setText("게임 재시작")
         self.next_stage_button.setEnabled(True)
-        self.safe_disconnect_button()  # 안전한 disconnect 사용
+        self.next_stage_button.clicked.disconnect()  # 기존 연결 해제
         self.next_stage_button.clicked.connect(self.restart_game)
 
         # 쇼다운 상태 초기화
@@ -2143,7 +2143,7 @@ class PokerGame(QWidget):
         success = self.get_river_card()
         
         if success:
-            # 성공 시 리버 카드 공개 완료 처리 (기존 성공과 동일)
+            # 성공 시 리버 카드 공개 완료 처리 (기존 성공과 완전히 동일)
             if self.is_showdown:
                 self.update_message("🎴 쇼다운!\n리버 공개.\n카드를 모두 오픈!")
                 # 쇼다운 상태에서는 바로 승자 결정
@@ -2152,7 +2152,7 @@ class PokerGame(QWidget):
             else:
                 self.update_message("🎴 리버: " + " ".join(self.community_cards))
             
-            # 기존 성공과 동일한 추가 처리
+            # 기존 성공과 동일한 처리 (show_next_stage()의 나머지 부분)
             self.next_stage_button.setEnabled(False)
             self.start_river_betting()
             
@@ -2193,6 +2193,12 @@ class PokerGame(QWidget):
         if success:
             # 성공 시 바로 승자 결정 (플레이어 카드는 쇼다운에서만 사용)
             self.determine_winner()
+            
+            # 버튼 상태 확인 및 수정 (안전장치)
+            self.next_stage_button.setText("게임 재시작")
+            self.next_stage_button.setEnabled(True)
+            self.safe_disconnect_button()
+            self.next_stage_button.clicked.connect(self.restart_game)
         else:
             # 실패 시 다시 재시도 버튼으로 설정
             self.next_stage_button.setText("재시도하기")
