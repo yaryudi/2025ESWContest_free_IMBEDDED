@@ -1034,11 +1034,13 @@ class PokerGame(QWidget):
         
         # 라운드 완료 체크
         if self.is_round_complete():
+            print(f"DEBUG: 라운드 완료 확인됨 - complete_round() 호출 예정")
             # 올인한 플레이어가 있는지 확인
             has_all_in = any(self.all_in_players)
             
             # 올인한 플레이어가 있으면 쇼다운 시작
             if has_all_in and not self.is_showdown:
+                print(f"DEBUG: 올인한 플레이어 있음 - 쇼다운 시작")
                 self.is_showdown = True
                 self.start_showdown_effect()
                 self.update_message("🎴 Show Down !!!\n\n모든 플레이어의 카드를 공개해주세요!")
@@ -1050,6 +1052,7 @@ class PokerGame(QWidget):
                     self.next_stage_button.setText("다음 카드 공개")
             else:
                 # 올인한 플레이어가 없는 경우 다음 단계로 진행
+                print(f"DEBUG: 올인한 플레이어 없음 - 다음 단계로 진행")
                 self.next_stage_button.setEnabled(True)
                 self.next_stage_button.setText("다음 카드 공개")
                 self.update_message("모든 플레이어가 행동을 마쳤습니다. 다음 단계로 진행하세요.")
@@ -1074,6 +1077,7 @@ class PokerGame(QWidget):
         # 2. 모든 활성 플레이어의 베팅이 동일한지 확인
         active_players = [i for i in range(self.num_players) if not self.folded_players[i]]
         if not active_players:
+            print("DEBUG: 모든 플레이어가 폴드함 - 라운드 완료")
             return True  # 모든 플레이어가 폴드한 경우
 
         # 3. 마지막 레이즈 이후 모든 플레이어가 행동했는지 확인
@@ -1092,17 +1096,22 @@ class PokerGame(QWidget):
                 for i in players_after_raiser
             )
             if not all_after_raiser_acted:
+                print(f"DEBUG: 마지막 레이즈 이후 플레이어들이 아직 행동하지 않음 - 라운드 미완료")
                 return False
 
         # 4. 모든 활성 플레이어의 베팅액이 동일한지 확인
         active_bets = [self.player_bets[i] for i in active_players]
         if len(set(active_bets)) > 1:
+            print(f"DEBUG: 활성 플레이어들의 베팅액이 다름 {active_bets} - 라운드 미완료")
             return False
 
         # 5. 모든 조건이 충족되면 라운드 완료
+        if all_acted:
+            print(f"DEBUG: 모든 조건 충족 - 라운드 완료 (현재 라운드: {self.current_round})")
         return all_acted
 
     def complete_round(self):
+        print(f"DEBUG: complete_round() 호출됨 - 현재 라운드: {self.current_round}")
         # 현재 라운드의 베팅금을 누적 팟에 추가
         round_pot = sum(self.player_bets)
         self.accumulated_pot += round_pot
@@ -1130,16 +1139,20 @@ class PokerGame(QWidget):
 
         # River 단계에서 베팅이 완료된 경우
         if self.current_round == "river":
+            print(f"DEBUG: 리버 라운드 완료 처리")
             if self.is_showdown:
                 # 쇼다운 상태에서는 바로 승자 결정
+                print(f"DEBUG: 쇼다운 상태 - 승자 결정")
                 self.determine_winner()
             else:
                 # 일반적인 경우 카드 공개 요청
+                print(f"DEBUG: 일반 상태 - 카드 공개 버튼 활성화")
                 self.update_message("베팅이 완료되었습니다. 각 플레이어의 카드를 공개해주세요.")
                 self.next_stage_button.setText("카드 공개")
                 self.next_stage_button.setEnabled(True)
         else:
             # 다음 라운드로 진행할 준비
+            print(f"DEBUG: 다음 라운드로 진행 - {self.current_round}")
             self.next_stage_button.setText("다음 카드 공개")
             self.next_stage_button.setEnabled(True)
             # 쇼다운 상태가 아닐 때만 일반 메시지 표시
