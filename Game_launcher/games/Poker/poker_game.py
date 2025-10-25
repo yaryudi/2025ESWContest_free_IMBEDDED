@@ -1003,7 +1003,7 @@ class PokerGame(QWidget):
             self.disable_all_buttons()
             self.next_stage_button.setText('게임 재시작')
             self.next_stage_button.setEnabled(True)
-            self.next_stage_button.clicked.disconnect()
+            self.safe_disconnect_button()
             self.next_stage_button.clicked.connect(self.restart_game)
             return
 
@@ -1452,7 +1452,7 @@ class PokerGame(QWidget):
         # 다음 단계 버튼을 재시작 버튼으로 변경
         self.next_stage_button.setText("게임 재시작")
         self.next_stage_button.setEnabled(True)
-        self.next_stage_button.clicked.disconnect()  # 기존 연결 해제
+        self.safe_disconnect_button()  # 안전한 연결 해제
         self.next_stage_button.clicked.connect(self.restart_game)
 
         # 쇼다운 상태 초기화
@@ -1536,7 +1536,7 @@ class PokerGame(QWidget):
         # 다음 단계 버튼 초기화
         self.next_stage_button.setText("다음 카드 공개")
         self.next_stage_button.setEnabled(False)
-        self.next_stage_button.clicked.disconnect()
+        self.safe_disconnect_button()
         self.next_stage_button.clicked.connect(self.show_next_stage)
         
         # 시작 메시지 표시
@@ -2010,7 +2010,6 @@ class PokerGame(QWidget):
                             self.update_message("카드 좌표 추출에 실패했습니다.")
                             QApplication.processEvents()
                             return False
-                        continue
                 
                 # 플랍 카드만 인식
                 flop_cards = self.card_detector.detect_flop_cards()
@@ -2227,7 +2226,6 @@ class PokerGame(QWidget):
                             QApplication.processEvents()
                             self.show_retry_button("turn")
                             return False
-                        continue
                 
                 # 턴 카드만 인식
                 turn_card = self.card_detector.detect_turn_card()
@@ -2287,7 +2285,6 @@ class PokerGame(QWidget):
                             QApplication.processEvents()
                             self.show_retry_button("river")
                             return False
-                        continue
                 
                 # 리버 카드만 인식
                 river_card = self.card_detector.detect_river_card()
@@ -2347,7 +2344,6 @@ class PokerGame(QWidget):
                             QApplication.processEvents()
                             self.show_retry_button("player")
                             return False
-                        continue
                 
                 # 각 플레이어의 카드 인식
                 all_cards_valid = True
