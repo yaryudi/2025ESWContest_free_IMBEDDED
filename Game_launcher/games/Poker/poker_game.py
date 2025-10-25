@@ -2140,7 +2140,7 @@ class PokerGame(QWidget):
         success = self.get_river_card()
         
         if success:
-            # 성공 시 리버 카드 공개 완료 처리
+            # 성공 시 리버 카드 공개 완료 처리 (기존 성공과 동일)
             if self.is_showdown:
                 self.update_message("🎴 쇼다운!\n리버 공개.\n카드를 모두 오픈!")
                 # 쇼다운 상태에서는 바로 승자 결정
@@ -2148,6 +2148,8 @@ class PokerGame(QWidget):
                 return
             else:
                 self.update_message("🎴 리버: " + " ".join(self.community_cards))
+            
+            # 베팅턴 시작 (기존 성공과 동일)
             self.next_stage_button.setEnabled(False)
             self.start_river_betting()
         else:
