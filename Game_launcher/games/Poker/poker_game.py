@@ -2062,40 +2062,85 @@ class PokerGame(QWidget):
     def restore_button_to_normal(self):
         """버튼을 원래 상태로 복원합니다."""
         self.next_stage_button.setText("다음 카드 공개")
+        self.next_stage_button.setEnabled(True)
         self.next_stage_button.clicked.disconnect()
         self.next_stage_button.clicked.connect(self.next_stage)
 
     def retry_flop_cards(self):
         """플랍 카드 재시도"""
-        self.next_stage_button.setText("다음 카드 공개")
+        # 재시도 중에는 버튼 비활성화
+        self.next_stage_button.setEnabled(False)
+        self.next_stage_button.setText("재시도 중...")
         self.next_stage_button.clicked.disconnect()
-        # 재시도 함수에 다시 연결 (성공할 때까지)
-        self.next_stage_button.clicked.connect(self.retry_flop_cards)
-        self.get_flop_cards()
+        
+        # 카드 인식 실행
+        success = self.get_flop_cards()
+        
+        if success:
+            # 성공 시 버튼을 원래 상태로 복원
+            self.restore_button_to_normal()
+        else:
+            # 실패 시 다시 재시도 버튼으로 설정
+            self.next_stage_button.setText("재시도하기")
+            self.next_stage_button.setEnabled(True)
+            self.next_stage_button.clicked.connect(self.retry_flop_cards)
 
     def retry_turn_card(self):
         """턴 카드 재시도"""
-        self.next_stage_button.setText("다음 카드 공개")
+        # 재시도 중에는 버튼 비활성화
+        self.next_stage_button.setEnabled(False)
+        self.next_stage_button.setText("재시도 중...")
         self.next_stage_button.clicked.disconnect()
-        # 재시도 함수에 다시 연결 (성공할 때까지)
-        self.next_stage_button.clicked.connect(self.retry_turn_card)
-        self.get_turn_card()
+        
+        # 카드 인식 실행
+        success = self.get_turn_card()
+        
+        if success:
+            # 성공 시 버튼을 원래 상태로 복원
+            self.restore_button_to_normal()
+        else:
+            # 실패 시 다시 재시도 버튼으로 설정
+            self.next_stage_button.setText("재시도하기")
+            self.next_stage_button.setEnabled(True)
+            self.next_stage_button.clicked.connect(self.retry_turn_card)
 
     def retry_river_card(self):
         """리버 카드 재시도"""
-        self.next_stage_button.setText("다음 카드 공개")
+        # 재시도 중에는 버튼 비활성화
+        self.next_stage_button.setEnabled(False)
+        self.next_stage_button.setText("재시도 중...")
         self.next_stage_button.clicked.disconnect()
-        # 재시도 함수에 다시 연결 (성공할 때까지)
-        self.next_stage_button.clicked.connect(self.retry_river_card)
-        self.get_river_card()
+        
+        # 카드 인식 실행
+        success = self.get_river_card()
+        
+        if success:
+            # 성공 시 버튼을 원래 상태로 복원
+            self.restore_button_to_normal()
+        else:
+            # 실패 시 다시 재시도 버튼으로 설정
+            self.next_stage_button.setText("재시도하기")
+            self.next_stage_button.setEnabled(True)
+            self.next_stage_button.clicked.connect(self.retry_river_card)
 
     def retry_player_cards(self):
         """플레이어 카드 재시도"""
-        self.next_stage_button.setText("다음 카드 공개")
+        # 재시도 중에는 버튼 비활성화
+        self.next_stage_button.setEnabled(False)
+        self.next_stage_button.setText("재시도 중...")
         self.next_stage_button.clicked.disconnect()
-        # 재시도 함수에 다시 연결 (성공할 때까지)
-        self.next_stage_button.clicked.connect(self.retry_player_cards)
-        self.get_player_cards()
+        
+        # 카드 인식 실행
+        success = self.get_player_cards()
+        
+        if success:
+            # 성공 시 버튼을 원래 상태로 복원
+            self.restore_button_to_normal()
+        else:
+            # 실패 시 다시 재시도 버튼으로 설정
+            self.next_stage_button.setText("재시도하기")
+            self.next_stage_button.setEnabled(True)
+            self.next_stage_button.clicked.connect(self.retry_player_cards)
 
     def get_turn_card(self):
         """턴 카드 1장을 인식하고 저장합니다."""
