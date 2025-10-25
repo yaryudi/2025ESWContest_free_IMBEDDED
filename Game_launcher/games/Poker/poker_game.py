@@ -2007,8 +2007,9 @@ class PokerGame(QWidget):
                             QApplication.processEvents()
                             time.sleep(1)
                         else:
-                            self.update_message(f"플랍 카드 인식 실패: {len(valid_cards)}/3장 인식됨")
+                            self.update_message(f"플랍 카드 인식 실패: {len(valid_cards)}/3장 인식됨\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                             QApplication.processEvents()
+                            self.show_retry_button("flop")
                             return False
                 else:
                     retry_count += 1
@@ -2017,8 +2018,9 @@ class PokerGame(QWidget):
                         QApplication.processEvents()
                         time.sleep(1)
                     else:
-                        self.update_message("플랍 카드 인식에 실패했습니다.")
+                        self.update_message("플랍 카드 인식에 실패했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                         QApplication.processEvents()
+                        self.show_retry_button("flop")
                         return False
             except Exception as e:
                 print(f"Error in get_flop_cards: {e}")
@@ -2028,10 +2030,60 @@ class PokerGame(QWidget):
                     QApplication.processEvents()
                     time.sleep(1)
                 else:
-                    self.update_message("카드 인식 중 오류가 발생했습니다.")
+                    self.update_message("카드 인식 중 오류가 발생했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                     QApplication.processEvents()
+                    self.show_retry_button("flop")
                     return False
         return False
+
+    def show_retry_button(self, stage):
+        """재시도 버튼을 표시합니다."""
+        self.next_stage_button.setText("재시도하기")
+        self.next_stage_button.setEnabled(True)
+        
+        # 기존 연결 해제
+        try:
+            self.next_stage_button.clicked.disconnect()
+        except:
+            pass
+        
+        # 재시도 함수 연결
+        if stage == "flop":
+            self.next_stage_button.clicked.connect(self.retry_flop_cards)
+        elif stage == "turn":
+            self.next_stage_button.clicked.connect(self.retry_turn_card)
+        elif stage == "river":
+            self.next_stage_button.clicked.connect(self.retry_river_card)
+        elif stage == "player":
+            self.next_stage_button.clicked.connect(self.retry_player_cards)
+
+    def retry_flop_cards(self):
+        """플랍 카드 재시도"""
+        self.next_stage_button.setText("다음 카드 공개")
+        self.next_stage_button.clicked.disconnect()
+        self.next_stage_button.clicked.connect(self.next_stage)
+        self.get_flop_cards()
+
+    def retry_turn_card(self):
+        """턴 카드 재시도"""
+        self.next_stage_button.setText("다음 카드 공개")
+        self.next_stage_button.clicked.disconnect()
+        self.next_stage_button.clicked.connect(self.next_stage)
+        self.get_turn_card()
+
+    def retry_river_card(self):
+        """리버 카드 재시도"""
+        self.next_stage_button.setText("다음 카드 공개")
+        self.next_stage_button.clicked.disconnect()
+        self.next_stage_button.clicked.connect(self.next_stage)
+        self.get_river_card()
+
+    def retry_player_cards(self):
+        """플레이어 카드 재시도"""
+        self.next_stage_button.setText("다음 카드 공개")
+        self.next_stage_button.clicked.disconnect()
+        self.next_stage_button.clicked.connect(self.next_stage)
+        self.get_player_cards()
 
     def get_turn_card(self):
         """턴 카드 1장을 인식하고 저장합니다."""
@@ -2055,8 +2107,9 @@ class PokerGame(QWidget):
                             QApplication.processEvents()
                             time.sleep(1)
                         else:
-                            self.update_message("카드 좌표 추출에 실패했습니다.")
+                            self.update_message("카드 좌표 추출에 실패했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                             QApplication.processEvents()
+                            self.show_retry_button("turn")
                             return False
                         continue
                 
@@ -2074,8 +2127,9 @@ class PokerGame(QWidget):
                         QApplication.processEvents()
                         time.sleep(1)
                     else:
-                        self.update_message("턴 카드 인식 실패: 카드를 인식할 수 없습니다.")
+                        self.update_message("턴 카드 인식 실패: 카드를 인식할 수 없습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                         QApplication.processEvents()
+                        self.show_retry_button("turn")
                         return False
             except Exception as e:
                 print(f"Error in get_turn_card: {e}")
@@ -2085,8 +2139,9 @@ class PokerGame(QWidget):
                     QApplication.processEvents()
                     time.sleep(1)
                 else:
-                    self.update_message("카드 인식 중 오류가 발생했습니다.")
+                    self.update_message("카드 인식 중 오류가 발생했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                     QApplication.processEvents()
+                    self.show_retry_button("turn")
                     return False
         return False
 
@@ -2112,8 +2167,9 @@ class PokerGame(QWidget):
                             QApplication.processEvents()
                             time.sleep(1)
                         else:
-                            self.update_message("카드 좌표 추출에 실패했습니다.")
+                            self.update_message("카드 좌표 추출에 실패했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                             QApplication.processEvents()
+                            self.show_retry_button("river")
                             return False
                         continue
                 
@@ -2131,8 +2187,9 @@ class PokerGame(QWidget):
                         QApplication.processEvents()
                         time.sleep(1)
                     else:
-                        self.update_message("리버 카드 인식 실패: 카드를 인식할 수 없습니다.")
+                        self.update_message("리버 카드 인식 실패: 카드를 인식할 수 없습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                         QApplication.processEvents()
+                        self.show_retry_button("river")
                         return False
             except Exception as e:
                 print(f"Error in get_river_card: {e}")
@@ -2142,8 +2199,9 @@ class PokerGame(QWidget):
                     QApplication.processEvents()
                     time.sleep(1)
                 else:
-                    self.update_message("카드 인식 중 오류가 발생했습니다.")
+                    self.update_message("카드 인식 중 오류가 발생했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                     QApplication.processEvents()
+                    self.show_retry_button("river")
                     return False
         return False
 
@@ -2169,8 +2227,9 @@ class PokerGame(QWidget):
                             QApplication.processEvents()
                             time.sleep(1)
                         else:
-                            self.update_message("카드 좌표 추출에 실패했습니다.")
+                            self.update_message("카드 좌표 추출에 실패했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                             QApplication.processEvents()
+                            self.show_retry_button("player")
                             return False
                         continue
                 
@@ -2202,8 +2261,9 @@ class PokerGame(QWidget):
                         QApplication.processEvents()
                         time.sleep(1)
                     else:
-                        self.update_message("플레이어 카드 인식 실패: 일부 카드를 인식할 수 없습니다.")
+                        self.update_message("플레이어 카드 인식 실패: 일부 카드를 인식할 수 없습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                         QApplication.processEvents()
+                        self.show_retry_button("player")
                         return False
             except Exception as e:
                 print(f"Error in get_player_cards: {e}")
@@ -2213,8 +2273,9 @@ class PokerGame(QWidget):
                     QApplication.processEvents()
                     time.sleep(1)
                 else:
-                    self.update_message("카드 인식 중 오류가 발생했습니다.")
+                    self.update_message("카드 인식 중 오류가 발생했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                     QApplication.processEvents()
+                    self.show_retry_button("player")
                     return False
         return False
 
