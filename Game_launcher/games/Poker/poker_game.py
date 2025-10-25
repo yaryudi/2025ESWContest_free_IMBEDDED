@@ -2004,8 +2004,11 @@ class PokerGame(QWidget):
                             self.update_message("🎴 쇼다운!\n플랍 공개.\n카드를 모두 오픈!")
                         else:
                             self.update_message("🎴 플랍: " + " ".join(self.community_cards[:3]))
-                        # 버튼을 원래 상태로 복원
-                        self.restore_button_to_normal()
+                        # 재시도 성공 시에도 일반 성공과 동일한 후처리
+                        self.next_stage_button.setText("다음 카드 공개")
+                        self.next_stage_button.setEnabled(True)
+                        self.safe_disconnect_button()
+                        self.next_stage_button.clicked.connect(self.show_next_stage)
                         return True
                     else:
                         retry_count += 1
@@ -2191,8 +2194,11 @@ class PokerGame(QWidget):
                         self.update_message("🎴 쇼다운!\n턴 공개.\n카드를 모두 오픈!")
                     else:
                         self.update_message("🎴 턴: " + " ".join(self.community_cards[:4]))
-                    # 버튼을 원래 상태로 복원
-                    self.restore_button_to_normal()
+                    # 재시도 성공 시에도 일반 성공과 동일한 후처리
+                    self.next_stage_button.setText("다음 카드 공개")
+                    self.next_stage_button.setEnabled(True)
+                    self.safe_disconnect_button()
+                    self.next_stage_button.clicked.connect(self.show_next_stage)
                     return True
                 else:
                     retry_count += 1
@@ -2261,8 +2267,11 @@ class PokerGame(QWidget):
                         return True
                     else:
                         self.update_message("🎴 리버: " + " ".join(self.community_cards))
-                    # 버튼을 원래 상태로 복원
-                    self.restore_button_to_normal()
+                    # 재시도 성공 시에도 일반 성공과 동일한 후처리
+                    self.next_stage_button.setText("다음 카드 공개")
+                    self.next_stage_button.setEnabled(True)
+                    self.safe_disconnect_button()
+                    self.next_stage_button.clicked.connect(self.show_next_stage)
                     return True
                 else:
                     retry_count += 1
