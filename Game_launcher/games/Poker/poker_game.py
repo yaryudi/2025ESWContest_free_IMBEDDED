@@ -2080,7 +2080,7 @@ class PokerGame(QWidget):
         success = self.get_flop_cards()
         
         if success:
-            # 성공 시 플랍 카드 공개 완료 처리
+            # 성공 시 플랍 카드 공개 완료 처리 (기존 성공과 동일)
             if self.is_showdown:
                 self.update_message("🎴 쇼다운!\n플랍 공개.\n카드를 모두 오픈!")
             else:
@@ -2088,6 +2088,11 @@ class PokerGame(QWidget):
             self.next_stage_button.setText("다음 카드 공개")
             self.next_stage_button.setEnabled(True)
             self.next_stage_button.clicked.connect(self.show_next_stage)
+            
+            # 베팅턴 시작 (기존 성공과 동일)
+            if not self.is_showdown:
+                self.update_ui_for_turn()
+                self.next_stage_button.setEnabled(False)
         else:
             # 실패 시 다시 재시도 버튼으로 설정
             self.next_stage_button.setText("재시도하기")
@@ -2105,7 +2110,7 @@ class PokerGame(QWidget):
         success = self.get_turn_card()
         
         if success:
-            # 성공 시 턴 카드 공개 완료 처리
+            # 성공 시 턴 카드 공개 완료 처리 (기존 성공과 동일)
             if self.is_showdown:
                 self.update_message("🎴 쇼다운!\n턴 공개.\n카드를 모두 오픈!")
             else:
@@ -2113,6 +2118,11 @@ class PokerGame(QWidget):
             self.next_stage_button.setText("다음 카드 공개")
             self.next_stage_button.setEnabled(True)
             self.next_stage_button.clicked.connect(self.show_next_stage)
+            
+            # 베팅턴 시작 (기존 성공과 동일)
+            if not self.is_showdown:
+                self.update_ui_for_turn()
+                self.next_stage_button.setEnabled(False)
         else:
             # 실패 시 다시 재시도 버튼으로 설정
             self.next_stage_button.setText("재시도하기")
