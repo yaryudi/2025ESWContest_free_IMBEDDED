@@ -2044,10 +2044,7 @@ class PokerGame(QWidget):
         self.next_stage_button.setEnabled(True)
         
         # 기존 연결 해제
-        try:
-            self.next_stage_button.clicked.disconnect()
-        except:
-            pass
+        self.safe_disconnect_button()
         
         # 재시도 함수 연결
         if stage == "flop":
@@ -2059,11 +2056,19 @@ class PokerGame(QWidget):
         elif stage == "player":
             self.next_stage_button.clicked.connect(self.retry_player_cards)
 
+    def safe_disconnect_button(self):
+        """버튼의 클릭 연결을 안전하게 해제합니다."""
+        try:
+            self.next_stage_button.clicked.disconnect()
+        except TypeError:
+            # 연결된 시그널이 없을 때 발생하는 오류를 무시
+            pass
+
     def restore_button_to_normal(self):
         """버튼을 원래 상태로 복원합니다."""
         self.next_stage_button.setText("다음 카드 공개")
         self.next_stage_button.setEnabled(True)
-        self.next_stage_button.clicked.disconnect()
+        self.safe_disconnect_button()
         self.next_stage_button.clicked.connect(self.next_stage)
 
     def retry_flop_cards(self):
@@ -2071,7 +2076,7 @@ class PokerGame(QWidget):
         # 재시도 중에는 버튼 비활성화
         self.next_stage_button.setEnabled(False)
         self.next_stage_button.setText("재시도 중...")
-        self.next_stage_button.clicked.disconnect()
+        self.safe_disconnect_button()
         
         # 카드 인식 실행
         success = self.get_flop_cards()
@@ -2090,7 +2095,7 @@ class PokerGame(QWidget):
         # 재시도 중에는 버튼 비활성화
         self.next_stage_button.setEnabled(False)
         self.next_stage_button.setText("재시도 중...")
-        self.next_stage_button.clicked.disconnect()
+        self.safe_disconnect_button()
         
         # 카드 인식 실행
         success = self.get_turn_card()
@@ -2109,7 +2114,7 @@ class PokerGame(QWidget):
         # 재시도 중에는 버튼 비활성화
         self.next_stage_button.setEnabled(False)
         self.next_stage_button.setText("재시도 중...")
-        self.next_stage_button.clicked.disconnect()
+        self.safe_disconnect_button()
         
         # 카드 인식 실행
         success = self.get_river_card()
@@ -2128,7 +2133,7 @@ class PokerGame(QWidget):
         # 재시도 중에는 버튼 비활성화
         self.next_stage_button.setEnabled(False)
         self.next_stage_button.setText("재시도 중...")
-        self.next_stage_button.clicked.disconnect()
+        self.safe_disconnect_button()
         
         # 카드 인식 실행
         success = self.get_player_cards()
