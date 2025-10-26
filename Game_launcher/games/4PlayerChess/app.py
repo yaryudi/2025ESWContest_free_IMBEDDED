@@ -53,49 +53,18 @@ def main():
       actors = generate_actors([*sys.argv])
     window = MainWindow(actors, moves)
     
-    # 창을 항상 최상위에 유지하도록 설정 (한 번만)
-    window.setWindowFlags(window.windowFlags() | Qt.WindowStaysOnTopHint)
-    
-    # 전체 화면으로 시작하므로 창 크기 설정 제거
-    # window.resize(800, 800)
-    
-    # 전체 화면으로 시작하므로 창 중앙 배치 제거
-    # screen = QRect(app.desktop().availableGeometry())
-    # x = screen.left() + int((screen.width() - window.width()) / 2)
-    # y = screen.top() + int((screen.height() - window.height()) / 2)
-    # window.move(x, y)
-    
-    # Show window normally instead of fullscreen
-    window.show()
-    
-    # 창을 맨 앞으로 가져오기
+    # 창을 맨 앞으로 가져오기 (showFullScreen은 main.py에서 처리됨)
     window.raise_()
     window.activateWindow()
     window.setWindowState(window.windowState() | Qt.WindowActive)
     
-    # 종료 키 처리 함수
-    original_keyPressEvent = window.keyPressEvent
-    def keyPressEvent(event):
-        if event.key() == Qt.Key_Escape:
-            print("ESC 키를 눌렀습니다. 프로그램을 종료합니다.")
-            app.quit()
-        elif event.key() == Qt.Key_Q and event.modifiers() == Qt.ControlModifier:
-            print("Ctrl+Q를 눌렀습니다. 프로그램을 종료합니다.")
-            app.quit()
-        else:
-            # 원래 keyPressEvent 호출
-            original_keyPressEvent(event)
-    window.keyPressEvent = keyPressEvent
-    
-    # 창을 맨 앞으로 가져오는 타이머 제거 (종료 문제 해결을 위해)
-    # timer = QTimer()
-    # timer.timeout.connect(bring_to_front)
-    # timer.start(1000)  # 1초 간격
-    
-    print("\n=== 체스 게임 종료 방법 ===")
-    print("ESC: 프로그램 종료")
+    print("\n=== 체스 게임 조작 방법 ===")
+    print("ESC: 전체화면/창모드 전환")
     print("Ctrl+Q: 프로그램 종료")
     print("Ctrl+C: 프로그램 종료 (터미널에서)")
+    print("S: 체스 말 소리 토글")
+    print("B: BGM 토글")
+    print("방향키: 게임 진행/되돌리기")
     print("==========================\n")
     
     sys.exit(app.exec_())
