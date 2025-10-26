@@ -1251,8 +1251,12 @@ class PokerGame(QWidget):
         if not active_players:
             return
 
-        # 첫 번째 활성 플레이어부터 시작
+        # 첫 번째 활성 플레이어부터 시작 (SB가 아닌 순서로)
+        # 리버는 특별하게 첫 번째 활성 플레이어부터 시작
         self.current_turn = active_players[0]
+        # UI 업데이트
+        for i in range(self.num_players):
+            self.update_ui(i)
         self.update_ui_for_turn()
         
         # 베팅 관련 변수 초기화
@@ -2110,6 +2114,11 @@ class PokerGame(QWidget):
             
             # 베팅턴 시작 (기존 성공과 동일)
             if not self.is_showdown:
+                # 플랍 카드 공개 후 SB부터 베팅 시작
+                self.current_turn = self.get_next_active_player(self.sb_index)
+                # UI 업데이트
+                for i in range(self.num_players):
+                    self.update_ui(i)
                 self.update_ui_for_turn()
                 self.next_stage_button.setEnabled(False)
         else:
@@ -2140,6 +2149,11 @@ class PokerGame(QWidget):
             
             # 베팅턴 시작 (기존 성공과 동일)
             if not self.is_showdown:
+                # 턴 카드 공개 후 SB부터 베팅 시작
+                self.current_turn = self.get_next_active_player(self.sb_index)
+                # UI 업데이트
+                for i in range(self.num_players):
+                    self.update_ui(i)
                 self.update_ui_for_turn()
                 self.next_stage_button.setEnabled(False)
         else:
