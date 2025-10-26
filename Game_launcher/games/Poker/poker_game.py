@@ -2397,6 +2397,15 @@ class PokerGame(QWidget):
                 for i in range(self.num_players):
                     if not self.folded_players[i]:
                         player_cards = self.card_detector.detect_player_cards(i + 1)
+                        
+                        # GPU 메모리 정리 (플레이어 카드 인식 후)
+                        try:
+                            import torch
+                            if torch.cuda.is_available():
+                                torch.cuda.empty_cache()
+                        except:
+                            pass
+                        
                         if player_cards:
                             # Unknown이 아닌 카드만 저장
                             valid_cards = [card for card in player_cards if card != "Unknown"]
