@@ -1982,6 +1982,14 @@ class PokerGame(QWidget):
         if not self.card_detector:
             self.update_message("카드 감지기가 초기화되지 않았습니다.")
             return False
+        
+        # GPU 메모리 정리 (인식 시작 전)
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except:
+            pass
             
         max_retries = 3
         retry_count = 0
@@ -2249,12 +2257,20 @@ class PokerGame(QWidget):
         if not self.card_detector:
             self.update_message("카드 감지기가 초기화되지 않았습니다.")
             return False
+        
+        # GPU 메모리 정리 (인식 시작 전)
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except:
+            pass
             
         max_retries = 3
         retry_count = 0
         self.update_message("턴 카드 인식 중...")
         QApplication.processEvents()
-
+        
         while retry_count < max_retries:
             try:
                 # 좌표가 유효한지 확인하고 필요시 재추출
@@ -2309,6 +2325,14 @@ class PokerGame(QWidget):
         if not self.card_detector:
             self.update_message("카드 감지기가 초기화되지 않았습니다.")
             return False
+        
+        # GPU 메모리 정리 (인식 시작 전)
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except:
+            pass
             
         max_retries = 3
         retry_count = 0
@@ -2369,6 +2393,14 @@ class PokerGame(QWidget):
         if not self.card_detector:
             self.update_message("카드 감지기가 초기화되지 않았습니다.")
             return False
+        
+        # GPU 메모리 정리 (인식 시작 전)
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except:
+            pass
             
         max_retries = 3
         retry_count = 0
