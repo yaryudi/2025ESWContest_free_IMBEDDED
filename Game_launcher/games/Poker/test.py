@@ -257,11 +257,25 @@ def reset_camera_device(device_id=0):
         print(f"카메라 리셋 중 오류: {e}")
         return False
 
+# 전역 변수로 모델 캐싱 (프로세스별로 유지)
+_worker_model = None
+
 def process_card_worker(model_path, warped_image):
     """별도의 프로세스에서 실행될 카드 처리 함수"""
+    global _worker_model
+    
     try:
-        model = YOLO(model_path)
-        results = model(warped_image, conf=0.3)
+        # 모델이 로드되지 않았을 때만 로드
+        if _worker_model is None:
+            _worker_model = YOLO(model_path)
+        
+        results = _worker_model(warped_image, conf=0.3)
+        
+        # GPU 메모리 정리 (Jetson Nano 최적화)
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
         for result in results:
             boxes = result.boxes
             if len(boxes) > 0 and len(results[0].boxes) > 0:
