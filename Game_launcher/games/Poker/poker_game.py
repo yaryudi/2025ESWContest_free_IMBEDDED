@@ -2007,8 +2007,9 @@ class PokerGame(QWidget):
                             QApplication.processEvents()
                             time.sleep(1)
                         else:
-                            self.update_message("카드 좌표 추출에 실패했습니다.")
+                            self.update_message("카드 좌표 추출에 실패했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                             QApplication.processEvents()
+                            self.show_retry_button("flop")
                             return False
                 
                 # 플랍 카드만 인식
@@ -2055,6 +2056,11 @@ class PokerGame(QWidget):
                     QApplication.processEvents()
                     self.show_retry_button("flop")
                     return False
+        
+        # 모든 재시도 실패 시 재시도 버튼 표시
+        self.update_message("카드 인식에 실패했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
+        QApplication.processEvents()
+        self.show_retry_button("flop")
         return False
 
     def show_retry_button(self, stage):
