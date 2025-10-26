@@ -925,14 +925,32 @@ class CardDetector:
             if not warped_images:
                 return None
             
-            # 멀티프로세싱으로 인식
-            results = self.pool.starmap(
-                process_card_worker,
-                [(self.model_path, img) for img in warped_images]
-            )
+            # 배치 크기 제한 (메모리 문제 방지)
+            BATCH_SIZE = 4  # 한 번에 4장씩 처리
             
             # 결과를 올바른 위치에 저장
-            for i, result in zip(valid_indices, results):
+            all_results = []
+            for batch_start in range(0, len(warped_images), BATCH_SIZE):
+                batch_end = min(batch_start + BATCH_SIZE, len(warped_images))
+                batch_images = warped_images[batch_start:batch_end]
+                
+                # 멀티프로세싱으로 인식 (배치 단위)
+                batch_results = self.pool.starmap(
+                    process_card_worker,
+                    [(self.model_path, img) for img in batch_images]
+                )
+                all_results.extend(batch_results)
+                
+                # GPU 메모리 정리 (배치 처리 후)
+                try:
+                    import torch
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                except:
+                    pass
+            
+            # 결과를 올바른 위치에 저장
+            for i, result in zip(valid_indices, all_results):
                 detected_cards[i] = result
             
             # 첫 번째 카드 이미지 저장 (디버깅용)
