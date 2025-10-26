@@ -2006,6 +2006,7 @@ class PokerGame(QWidget):
                             self.update_message(f"카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
                             QApplication.processEvents()
                             time.sleep(1)
+                            continue  # 다시 while 루프 시작
                         else:
                             self.update_message("카드 좌표 추출에 실패했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                             QApplication.processEvents()
@@ -2028,6 +2029,7 @@ class PokerGame(QWidget):
                             self.update_message(f"플랍 카드 인식 실패: {len(valid_cards)}/3장 인식됨\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
                             QApplication.processEvents()
                             time.sleep(1)
+                            continue  # 다시 while 루프 시작
                         else:
                             self.update_message(f"플랍 카드 인식 실패: {len(valid_cards)}/3장 인식됨\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                             QApplication.processEvents()
@@ -2039,6 +2041,7 @@ class PokerGame(QWidget):
                         self.update_message(f"플랍 카드 인식에 실패했습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
                         QApplication.processEvents()
                         time.sleep(1)
+                        continue  # 다시 while 루프 시작
                     else:
                         self.update_message("플랍 카드 인식에 실패했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                         QApplication.processEvents()
@@ -2051,6 +2054,7 @@ class PokerGame(QWidget):
                     self.update_message(f"카드 인식 중 오류 발생: {str(e)}\n다시 시도중... ({retry_count}/{max_retries})")
                     QApplication.processEvents()
                     time.sleep(1)
+                    continue  # 다시 while 루프 시작
                 else:
                     self.update_message("카드 인식 중 오류가 발생했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                     QApplication.processEvents()
@@ -2227,6 +2231,7 @@ class PokerGame(QWidget):
                             self.update_message(f"카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
                             QApplication.processEvents()
                             time.sleep(1)
+                            continue  # 다시 while 루프 시작
                         else:
                             self.update_message("카드 좌표 추출에 실패했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                             QApplication.processEvents()
@@ -2246,6 +2251,7 @@ class PokerGame(QWidget):
                         self.update_message(f"턴 카드 인식 실패: 카드를 인식할 수 없습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
                         QApplication.processEvents()
                         time.sleep(1)
+                        continue  # 다시 while 루프 시작
                     else:
                         self.update_message("턴 카드 인식 실패: 카드를 인식할 수 없습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                         QApplication.processEvents()
@@ -2258,6 +2264,7 @@ class PokerGame(QWidget):
                     self.update_message(f"카드 인식 중 오류 발생: {str(e)}\n다시 시도중... ({retry_count}/{max_retries})")
                     QApplication.processEvents()
                     time.sleep(1)
+                    continue  # 다시 while 루프 시작
                 else:
                     self.update_message("카드 인식 중 오류가 발생했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                     QApplication.processEvents()
@@ -2286,6 +2293,7 @@ class PokerGame(QWidget):
                             self.update_message(f"카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
                             QApplication.processEvents()
                             time.sleep(1)
+                            continue  # 다시 while 루프 시작
                         else:
                             self.update_message("카드 좌표 추출에 실패했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                             QApplication.processEvents()
@@ -2305,6 +2313,7 @@ class PokerGame(QWidget):
                         self.update_message(f"리버 카드 인식 실패: 카드를 인식할 수 없습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
                         QApplication.processEvents()
                         time.sleep(1)
+                        continue  # 다시 while 루프 시작
                     else:
                         self.update_message("리버 카드 인식 실패: 카드를 인식할 수 없습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                         QApplication.processEvents()
@@ -2317,6 +2326,7 @@ class PokerGame(QWidget):
                     self.update_message(f"카드 인식 중 오류 발생: {str(e)}\n다시 시도중... ({retry_count}/{max_retries})")
                     QApplication.processEvents()
                     time.sleep(1)
+                    continue  # 다시 while 루프 시작
                 else:
                     self.update_message("카드 인식 중 오류가 발생했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                     QApplication.processEvents()
@@ -2345,6 +2355,7 @@ class PokerGame(QWidget):
                             self.update_message(f"카드 좌표 추출 실패.\n카드 배치를 확인해주세요.\n다시 시도중... ({retry_count}/{max_retries})")
                             QApplication.processEvents()
                             time.sleep(1)
+                            continue  # 다시 while 루프 시작
                         else:
                             self.update_message("카드 좌표 추출에 실패했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                             QApplication.processEvents()
@@ -2378,6 +2389,7 @@ class PokerGame(QWidget):
                         self.update_message(f"플레이어 카드 인식 실패: 일부 카드를 인식할 수 없습니다.\n카드 배치나 조명의 문제일 수 있습니다.\n다시 시도중... ({retry_count}/{max_retries})")
                         QApplication.processEvents()
                         time.sleep(1)
+                        continue  # 다시 while 루프 시작
                     else:
                         self.update_message("플레이어 카드 인식 실패: 일부 카드를 인식할 수 없습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                         QApplication.processEvents()
@@ -2390,6 +2402,7 @@ class PokerGame(QWidget):
                     self.update_message(f"카드 인식 중 오류 발생: {str(e)}\n다시 시도중... ({retry_count}/{max_retries})")
                     QApplication.processEvents()
                     time.sleep(1)
+                    continue  # 다시 while 루프 시작
                 else:
                     self.update_message("카드 인식 중 오류가 발생했습니다.\n카드 배치를 확인하고 '재시도하기' 버튼을 눌러주세요.")
                     QApplication.processEvents()
