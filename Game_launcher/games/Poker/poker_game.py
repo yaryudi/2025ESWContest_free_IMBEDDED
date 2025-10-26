@@ -6,7 +6,7 @@
 import random
 import math
 import sys
-from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QInputDialog, QSpinBox, QVBoxLayout, QHBoxLayout, QDialog, QGraphicsDropShadowEffect, QGraphicsScene, QGraphicsView, QGraphicsProxyWidget, QApplication, QMessageBox
+from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QInputDialog, QSpinBox, QVBoxLayout, QHBoxLayout, QDialog, QGraphicsDropShadowEffect, QGraphicsScene, QGraphicsView, QGraphicsProxyWidget, QApplication, QMessageBox, QStyle, QStyleOptionButton
 from PyQt5.QtGui import QFont, QColor, QTransform, QPainter, QPixmap, QImage
 from PyQt5.QtCore import Qt, QTimer, QPoint
 from hand_evaluator import HandEvaluator
@@ -18,14 +18,98 @@ from ultralytics import YOLO
 import time
 
 
+class RotatableLabel(QLabel):
+    """180도 회전 가능한 라벨"""
+    
+    def __init__(self, text, rotate=False):
+        super().__init__(text)
+        self.rotate = rotate
+    
+    def paintEvent(self, event):
+        """텍스트를 180도 회전하여 그립니다."""
+        if self.rotate:
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.Antialiasing)
+            
+            # 중앙을 기준으로 180도 회전
+            center = self.rect().center()
+            
+            # 먼저 배경을 그립니다
+            palette = self.palette()
+            bg_color = palette.color(self.backgroundRole())
+            painter.fillRect(self.rect(), bg_color)
+            
+            # 텍스트 색상 설정
+            painter.setPen(palette.color(self.foregroundRole()))
+            painter.setFont(self.font())
+            
+            # 텍스트를 180도 회전하여 그리기
+            painter.translate(center)
+            painter.rotate(180)
+            painter.translate(-center)
+            
+            # 텍스트 그리기
+            painter.drawText(self.rect(), self.alignment(), self.text())
+            painter.end()
+        else:
+            super().paintEvent(event)
+
+
+class RotatableButton(QPushButton):
+    """180도 회전 가능한 버튼"""
+    
+    def __init__(self, text, rotate=False):
+        super().__init__(text)
+        self.rotate = rotate
+    
+    def paintEvent(self, event):
+        """텍스트를 180도 회전하여 그립니다."""
+        if self.rotate:
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.Antialiasing)
+            
+            # 버튼의 스타일 옵션 생성
+            option = QStyleOptionButton()
+            self.initStyleOption(option)
+            
+            # 버튼 배경과 테두리를 그립니다
+            self.style().drawControl(QStyle.CE_PushButtonBevel, option, painter, self)
+            
+            # 텍스트를 제외한 버튼 요소를 그림
+            # (텍스트는 별도로 회전시켜 그려야 함)
+            
+            # 중앙을 기준으로 180도 회전
+            center = self.rect().center()
+            
+            # 텍스트 색상과 폰트 설정
+            painter.setPen(self.palette().color(self.foregroundRole()))
+            painter.setFont(self.font())
+            
+            # 텍스트를 180도 회전하여 그리기
+            painter.translate(center)
+            painter.rotate(180)
+            painter.translate(-center)
+            
+            # 텍스트만 그리기 (배경은 이미 그렸음)
+            text = self.text()
+            painter.drawText(self.rect(), Qt.AlignCenter, text)
+            painter.end()
+        else:
+            super().paintEvent(event)
+
+
 class RaiseDialog(QDialog):
     """레이즈 금액을 입력받는 다이얼로그 창"""
     
-    def __init__(self, parent, min_amount, max_amount, current_bet):
+    def __init__(self, parent, min_amount, max_amount, current_bet, player_idx=None):
         super().__init__(parent)
         self.setWindowTitle("레이즈 금액 설정")
         self.setFixedSize(400, 250)
         self.setWindowFlags(Qt.FramelessWindowHint)  # 윗 틀 제거
+        self.player_idx = player_idx  # 플레이어 인덱스 저장
+        
+        # 플레이어 1, 2, 3일 때 회전 처리
+        self.rotate_for_player = player_idx is not None and player_idx < 3
         
         # 전체 창 스타일 설정
         self.setStyleSheet("""
@@ -41,14 +125,14 @@ class RaiseDialog(QDialog):
         layout.setContentsMargins(15, 15, 15, 15)
         
         # 현재 베팅 정보 표시
-        current_bet_label = QLabel(f"현재 베팅: {current_bet:,}칩")
+        current_bet_label = RotatableLabel(f"현재 베팅: {current_bet:,}칩", self.rotate_for_player)
         current_bet_label.setAlignment(Qt.AlignCenter)
         current_bet_label.setFont(QFont("Arial", 14))
         current_bet_label.setStyleSheet("color: #3498DB; background-color: #34495E; padding: 8px; border-radius: 10px;")
         layout.addWidget(current_bet_label)
         
         # 최소 레이즈 금액 표시
-        min_raise_label = QLabel(f"최소 레이즈: {min_amount:,}칩")
+        min_raise_label = RotatableLabel(f"최소 레이즈: {min_amount:,}칩", self.rotate_for_player)
         min_raise_label.setAlignment(Qt.AlignCenter)
         min_raise_label.setFont(QFont("Arial", 14))
         min_raise_label.setStyleSheet("color: #E74C3C; background-color: #34495E; padding: 8px; border-radius: 10px;")
@@ -59,7 +143,7 @@ class RaiseDialog(QDialog):
         amount_layout.setSpacing(10)
         
         # 다운 버튼 (왼쪽)
-        down_btn = QPushButton("▼")
+        down_btn = QPushButton("▼" if not self.rotate_for_player else "▲")
         down_btn.setFixedSize(60, 60)
         down_btn.setFont(QFont("Arial", 20, QFont.Bold))
         down_btn.setStyleSheet("""
@@ -81,7 +165,7 @@ class RaiseDialog(QDialog):
         amount_layout.addWidget(down_btn)
         
         # 금액 표시 라벨 (중앙)
-        self.amount_label = QLabel(f"{min_amount:,}")
+        self.amount_label = RotatableLabel(f"{min_amount:,}", self.rotate_for_player)
         self.amount_label.setAlignment(Qt.AlignCenter)
         self.amount_label.setFont(QFont("Arial", 24, QFont.Bold))
         self.amount_label.setStyleSheet("""
@@ -99,7 +183,7 @@ class RaiseDialog(QDialog):
         amount_layout.addWidget(self.amount_label)
         
         # 업 버튼 (오른쪽)
-        up_btn = QPushButton("▲")
+        up_btn = QPushButton("▲" if not self.rotate_for_player else "▼")
         up_btn.setFixedSize(60, 60)
         up_btn.setFont(QFont("Arial", 20, QFont.Bold))
         up_btn.setStyleSheet("""
@@ -131,7 +215,7 @@ class RaiseDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.setSpacing(15)
         
-        ok_btn = QPushButton("확인")
+        ok_btn = RotatableButton("확인", self.rotate_for_player)
         ok_btn.setFont(QFont("Arial", 14, QFont.Bold))
         ok_btn.setFixedSize(120, 45)
         ok_btn.setStyleSheet("""
@@ -151,7 +235,7 @@ class RaiseDialog(QDialog):
         """)
         ok_btn.clicked.connect(self.accept)
         
-        cancel_btn = QPushButton("취소")
+        cancel_btn = RotatableButton("취소", self.rotate_for_player)
         cancel_btn.setFont(QFont("Arial", 14, QFont.Bold))
         cancel_btn.setFixedSize(120, 45)
         cancel_btn.setStyleSheet("""
@@ -171,9 +255,27 @@ class RaiseDialog(QDialog):
         """)
         cancel_btn.clicked.connect(self.reject)
         
-        button_layout.addWidget(ok_btn)
-        button_layout.addWidget(cancel_btn)
+        # 플레이어 0, 1, 2일 때 버튼 순서 역순
+        if self.rotate_for_player:
+            button_layout.addWidget(cancel_btn)
+            button_layout.addWidget(ok_btn)
+        else:
+            button_layout.addWidget(ok_btn)
+            button_layout.addWidget(cancel_btn)
         layout.addLayout(button_layout)
+        
+        # 플레이어 0, 1, 2일 때 레이아웃을 역순으로 재배치
+        if self.rotate_for_player:
+            # 모든 아이템을 임시 저장
+            temp_items = []
+            while layout.count():
+                item = layout.takeAt(0)
+                temp_items.append(item)
+            
+            # 역순으로 다시 추가
+            for item in reversed(temp_items):
+                layout.addItem(item)
+        
         self.setLayout(layout)
 
     def increase_amount(self):
@@ -1920,7 +2022,7 @@ class PokerGame(QWidget):
             self.update_message("❌ 최소 레이즈 금액이 보유 칩보다 많습니다.")
             return
 
-        dialog = RaiseDialog(self, min_total, max_total, self.max_bet)
+        dialog = RaiseDialog(self, min_total, max_total, self.max_bet, idx)
         
         # 플레이어의 이름 UI 위치를 기준으로 다이얼로그 위치 설정
         name_label = self.name_labels[idx]
