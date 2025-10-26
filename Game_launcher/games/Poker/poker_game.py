@@ -819,18 +819,18 @@ class PokerGame(QWidget):
             if is_rotated_info:
                 # 플레이어 0, 1, 2: 베팅 정보를 회전된 위치에 배치
                 # 180도 회전 시 텍스트가 뒤집히므로 컨테이너 너비만큼 왼쪽으로 이동
-                bet_container.setGeometry(x - 300 + 180, y + 60, 300, 75)
+                bet_container.setGeometry(x - 300 + 180, y + 60, 300, 90)
             else:
                 # 플레이어 3, 4: 원래 위치
-                bet_container.setGeometry(x, y + 60, 300, 75)
+                bet_container.setGeometry(x, y + 60, 300, 90)
             bet_container.setStyleSheet("background-color: transparent;")
             
             bet_label = RotatableLabel("베팅: 0", is_rotated_info) if is_rotated_info else QLabel("베팅: 0", bet_container)
             if is_rotated_info:
                 bet_label.setParent(bet_container)
             bet_label.setStyleSheet("color: white;")
-            bet_label.setFont(QFont("Arial", 12))
-            bet_label.setFixedSize(300, 25)
+            bet_label.setFont(QFont("Arial", 16))
+            bet_label.setFixedSize(300, 30)
             bet_label.move(0, 0)
             self.bet_labels.append(bet_label)
 
@@ -838,18 +838,18 @@ class PokerGame(QWidget):
             if is_rotated_info:
                 total_bet_label.setParent(bet_container)
             total_bet_label.setStyleSheet("color: #FFD700;")
-            total_bet_label.setFont(QFont("Arial", 12))
-            total_bet_label.setFixedSize(300, 25)
-            total_bet_label.move(0, 25)
+            total_bet_label.setFont(QFont("Arial", 16))
+            total_bet_label.setFixedSize(300, 30)
+            total_bet_label.move(0, 30)
             self.total_bet_labels.append(total_bet_label)
 
             chip_label = RotatableLabel(f"칩: {self.chips[i]}", is_rotated_info) if is_rotated_info else QLabel(f"칩: {self.chips[i]}", bet_container)
             if is_rotated_info:
                 chip_label.setParent(bet_container)
             chip_label.setStyleSheet("color: gold;")
-            chip_label.setFont(QFont("Arial", 12))
-            chip_label.setFixedSize(300, 25)
-            chip_label.move(0, 50)
+            chip_label.setFont(QFont("Arial", 16))
+            chip_label.setFixedSize(300, 30)
+            chip_label.move(0, 60)
             self.chip_labels.append(chip_label)
 
             # 액션 버튼들
