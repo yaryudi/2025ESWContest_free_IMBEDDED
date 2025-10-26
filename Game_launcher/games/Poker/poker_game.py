@@ -1859,18 +1859,18 @@ class PokerGame(QWidget):
 
     def update_showdown_effect(self):
         """쇼다운 효과를 업데이트합니다."""
-        self.showdown_alpha = min(0.15, self.showdown_alpha + 0.01)  # 최대 15% 투명도 (더 어둡게)
+        self.showdown_alpha = min(0.2, self.showdown_alpha + 0.015)  # 최대 20% 투명도
         self.showdown_text.setStyleSheet(f"""
             color: rgba(255, 0, 0, {self.showdown_alpha});
             font-weight: bold;
             font-family: 'Arial Black';
             background: transparent;
         """)
-        # 더 어두운 색상으로 변경 (금색에서 붉은색 기반으로)
-        self.showdown_overlay.setStyleSheet(f"background-color: rgba(200, 50, 50, {self.showdown_alpha});")
+        # 금색 기반으로 변경 (더 밝게)
+        self.showdown_overlay.setStyleSheet(f"background-color: rgba(255, 215, 0, {self.showdown_alpha});")
         self.update_showdown_text_positions()
         
-        if self.showdown_alpha >= 0.15:
+        if self.showdown_alpha >= 0.2:
             self.showdown_effect_timer.stop()
             self.showdown_effect_timer = None
 
@@ -2094,6 +2094,14 @@ class PokerGame(QWidget):
 
     def retry_flop_cards(self):
         """플랍 카드 재시도"""
+        # GPU 메모리 정리 (재시도 전)
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except:
+            pass
+        
         # 재시도 중에는 버튼 비활성화
         self.next_stage_button.setEnabled(False)
         self.next_stage_button.setText("재시도 중...")
@@ -2129,6 +2137,14 @@ class PokerGame(QWidget):
 
     def retry_turn_card(self):
         """턴 카드 재시도"""
+        # GPU 메모리 정리 (재시도 전)
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except:
+            pass
+        
         # 재시도 중에는 버튼 비활성화
         self.next_stage_button.setEnabled(False)
         self.next_stage_button.setText("재시도 중...")
@@ -2164,6 +2180,14 @@ class PokerGame(QWidget):
 
     def retry_river_card(self):
         """리버 카드 재시도"""
+        # GPU 메모리 정리 (재시도 전)
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except:
+            pass
+        
         # 재시도 중에는 버튼 비활성화
         self.next_stage_button.setEnabled(False)
         self.next_stage_button.setText("재시도 중...")
@@ -2194,6 +2218,14 @@ class PokerGame(QWidget):
 
     def retry_player_cards(self):
         """플레이어 카드 재시도"""
+        # GPU 메모리 정리 (재시도 전)
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except:
+            pass
+        
         # 재시도 중에는 버튼 비활성화
         self.next_stage_button.setEnabled(False)
         self.next_stage_button.setText("재시도 중...")
