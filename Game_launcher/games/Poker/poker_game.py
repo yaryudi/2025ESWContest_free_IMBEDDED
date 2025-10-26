@@ -1855,17 +1855,18 @@ class PokerGame(QWidget):
 
     def update_showdown_effect(self):
         """쇼다운 효과를 업데이트합니다."""
-        self.showdown_alpha = min(0.3, self.showdown_alpha + 0.02)  # 최대 30% 투명도
+        self.showdown_alpha = min(0.15, self.showdown_alpha + 0.01)  # 최대 15% 투명도 (더 어둡게)
         self.showdown_text.setStyleSheet(f"""
             color: rgba(255, 0, 0, {self.showdown_alpha});
             font-weight: bold;
             font-family: 'Arial Black';
             background: transparent;
         """)
-        self.showdown_overlay.setStyleSheet(f"background-color: rgba(255, 215, 0, {self.showdown_alpha});")
+        # 더 어두운 색상으로 변경 (금색에서 붉은색 기반으로)
+        self.showdown_overlay.setStyleSheet(f"background-color: rgba(200, 50, 50, {self.showdown_alpha});")
         self.update_showdown_text_positions()
         
-        if self.showdown_alpha >= 0.3:
+        if self.showdown_alpha >= 0.15:
             self.showdown_effect_timer.stop()
             self.showdown_effect_timer = None
 
