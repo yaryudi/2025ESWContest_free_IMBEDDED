@@ -58,8 +58,8 @@ class RotatableLabel(QLabel):
 class RotatableButton(QPushButton):
     """180도 회전 가능한 버튼"""
     
-    def __init__(self, text, rotate=False):
-        super().__init__(text)
+    def __init__(self, text, parent=None, rotate=False):
+        super().__init__(text, parent)
         self.rotate = rotate
     
     def paintEvent(self, event):
@@ -75,24 +75,23 @@ class RotatableButton(QPushButton):
             # 버튼 배경과 테두리를 그립니다
             self.style().drawControl(QStyle.CE_PushButtonBevel, option, painter, self)
             
-            # 텍스트를 제외한 버튼 요소를 그림
-            # (텍스트는 별도로 회전시켜 그려야 함)
+            # 새 페인터를 시작하여 텍스트만 회전하여 그리기
+            painter.save()
             
             # 중앙을 기준으로 180도 회전
             center = self.rect().center()
+            painter.translate(center)
+            painter.rotate(180)
+            painter.translate(-center)
             
             # 텍스트 색상과 폰트 설정
             painter.setPen(self.palette().color(self.foregroundRole()))
             painter.setFont(self.font())
             
-            # 텍스트를 180도 회전하여 그리기
-            painter.translate(center)
-            painter.rotate(180)
-            painter.translate(-center)
-            
-            # 텍스트만 그리기 (배경은 이미 그렸음)
+            # 텍스트 그리기
             text = self.text()
             painter.drawText(self.rect(), Qt.AlignCenter, text)
+            painter.restore()
             painter.end()
         else:
             super().paintEvent(event)
@@ -215,7 +214,7 @@ class RaiseDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.setSpacing(15)
         
-        ok_btn = RotatableButton("확인", self.rotate_for_player)
+        ok_btn = RotatableButton("확인", self, self.rotate_for_player)
         ok_btn.setFont(QFont("Arial", 14, QFont.Bold))
         ok_btn.setFixedSize(120, 45)
         ok_btn.setStyleSheet("""
@@ -235,7 +234,7 @@ class RaiseDialog(QDialog):
         """)
         ok_btn.clicked.connect(self.accept)
         
-        cancel_btn = RotatableButton("취소", self.rotate_for_player)
+        cancel_btn = RotatableButton("취소", self, self.rotate_for_player)
         cancel_btn.setFont(QFont("Arial", 14, QFont.Bold))
         cancel_btn.setFixedSize(120, 45)
         cancel_btn.setStyleSheet("""
@@ -838,7 +837,9 @@ class PokerGame(QWidget):
             buttons = []
             actions = [("콜", self.call), ("체크", self.check), ("폴드", self.fold), ("레이즈", self.raise_bet), ("올인", self.all_in)]
             for j, (text, func) in enumerate(actions):
-                btn = QPushButton(text, self)
+                # 플레이어 0, 1, 2일 때 회전
+                is_rotated = i < 3
+                btn = RotatableButton(text, self, is_rotated) if is_rotated else QPushButton(text, self)
                 btn.setStyleSheet("""
                     font-size: 12px;
                     padding: 5px;
