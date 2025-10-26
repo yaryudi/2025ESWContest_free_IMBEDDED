@@ -6,7 +6,7 @@
 import random
 import math
 import sys
-from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QInputDialog, QSpinBox, QVBoxLayout, QHBoxLayout, QDialog, QGraphicsDropShadowEffect, QGraphicsScene, QGraphicsView, QGraphicsProxyWidget, QApplication, QMessageBox, QStyle, QStyleOptionButton
+from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QInputDialog, QSpinBox, QVBoxLayout, QHBoxLayout, QDialog, QGraphicsDropShadowEffect, QGraphicsScene, QGraphicsView, QGraphicsProxyWidget, QApplication, QMessageBox, QStyle, QStyleOptionButton, QStyleOption, QStyleOptionFrame
 from PyQt5.QtGui import QFont, QColor, QTransform, QPainter, QPixmap, QImage
 from PyQt5.QtCore import Qt, QTimer, QPoint
 from hand_evaluator import HandEvaluator
@@ -31,25 +31,27 @@ class RotatableLabel(QLabel):
             painter = QPainter(self)
             painter.setRenderHint(QPainter.Antialiasing)
             
-            # 중앙을 기준으로 180도 회전
+            # 1. 먼저 배경을 그립니다 (스타일시트 적용)
+            option = QStyleOptionFrame()
+            self.initStyleOption(option)
+            self.style().drawControl(QStyle.CE_ShapedFrame, option, painter, self)
+            
+            # 2. 중앙을 기준으로 180도 회전하여 텍스트만 그립니다
+            painter.save()
+            
             center = self.rect().center()
-            
-            # 먼저 배경을 그립니다
-            palette = self.palette()
-            bg_color = palette.color(self.backgroundRole())
-            painter.fillRect(self.rect(), bg_color)
-            
-            # 텍스트 색상 설정
-            painter.setPen(palette.color(self.foregroundRole()))
-            painter.setFont(self.font())
-            
-            # 텍스트를 180도 회전하여 그리기
             painter.translate(center)
             painter.rotate(180)
             painter.translate(-center)
             
+            # 텍스트 색상과 폰트 설정
+            painter.setPen(self.palette().color(self.foregroundRole()))
+            painter.setFont(self.font())
+            
             # 텍스트 그리기
             painter.drawText(self.rect(), self.alignment(), self.text())
+            
+            painter.restore()
             painter.end()
         else:
             super().paintEvent(event)
@@ -793,7 +795,8 @@ class PokerGame(QWidget):
                 position = " (UTG)"
 
             # 플레이어 이름
-            name_label = QLabel(f"Player {i + 1}{position}", self)
+            is_rotated_name = i < 3
+            name_label = RotatableLabel(f"Player {i + 1}{position}", is_rotated_name) if is_rotated_name else QLabel(f"Player {i + 1}{position}", self)
             name_label.setStyleSheet("""
                 background-color: skyblue;
                 border: 2px solid navy;
@@ -801,6 +804,8 @@ class PokerGame(QWidget):
                 padding: 5px;
                 color: black;
             """)
+            if is_rotated_name:
+                name_label.setParent(self)
             name_label.setFont(QFont("Arial", 12))
             name_label.setAlignment(Qt.AlignCenter)
             name_label.setFixedSize(card_area_width-160, 30)
@@ -808,25 +813,39 @@ class PokerGame(QWidget):
             self.name_labels.append(name_label)
 
             # 베팅 정보 컨테이너
+            # 플레이어 0, 1, 2일 때 베팅 정보도 회전하므로 위치 조정
+            is_rotated_info = i < 3
             bet_container = QWidget(self)
-            bet_container.setGeometry(x, y + 60, 300, 75)
+            if is_rotated_info:
+                # 플레이어 0, 1, 2: 베팅 정보를 회전된 위치에 배치
+                # 180도 회전 시 텍스트가 뒤집히므로 컨테이너 너비만큼 왼쪽으로 이동
+                bet_container.setGeometry(x - 300 + 180, y + 60, 300, 75)
+            else:
+                # 플레이어 3, 4: 원래 위치
+                bet_container.setGeometry(x, y + 60, 300, 75)
             bet_container.setStyleSheet("background-color: transparent;")
-
-            bet_label = QLabel("베팅: 0", bet_container)
+            
+            bet_label = RotatableLabel("베팅: 0", is_rotated_info) if is_rotated_info else QLabel("베팅: 0", bet_container)
+            if is_rotated_info:
+                bet_label.setParent(bet_container)
             bet_label.setStyleSheet("color: white;")
             bet_label.setFont(QFont("Arial", 12))
             bet_label.setFixedSize(300, 25)
             bet_label.move(0, 0)
             self.bet_labels.append(bet_label)
 
-            total_bet_label = QLabel("누적: 0", bet_container)
+            total_bet_label = RotatableLabel("누적: 0", is_rotated_info) if is_rotated_info else QLabel("누적: 0", bet_container)
+            if is_rotated_info:
+                total_bet_label.setParent(bet_container)
             total_bet_label.setStyleSheet("color: #FFD700;")
             total_bet_label.setFont(QFont("Arial", 12))
             total_bet_label.setFixedSize(300, 25)
             total_bet_label.move(0, 25)
             self.total_bet_labels.append(total_bet_label)
 
-            chip_label = QLabel(f"칩: {self.chips[i]}", bet_container)
+            chip_label = RotatableLabel(f"칩: {self.chips[i]}", is_rotated_info) if is_rotated_info else QLabel(f"칩: {self.chips[i]}", bet_container)
+            if is_rotated_info:
+                chip_label.setParent(bet_container)
             chip_label.setStyleSheet("color: gold;")
             chip_label.setFont(QFont("Arial", 12))
             chip_label.setFixedSize(300, 25)
@@ -1005,7 +1024,11 @@ class PokerGame(QWidget):
             if i < len(ui_positions):
                 x, y = ui_positions[ui_indices[i]]
                 if i < len(self.bet_labels) and self.bet_labels[i]:
-                    self.bet_labels[i].parent().move(x, y + 60)
+                    # 플레이어 0, 1, 2일 때 위치 조정 (회전 때문에)
+                    if i < 3:
+                        self.bet_labels[i].parent().move(x - 300 + 180, y + 60)
+                    else:
+                        self.bet_labels[i].parent().move(x, y + 60)
                 if i < len(self.action_buttons) and self.action_buttons[i]:
                     for j, btn in enumerate(self.action_buttons[i]):
                         btn_x = x + player_container_width - 20 + (j % 2) * 105
