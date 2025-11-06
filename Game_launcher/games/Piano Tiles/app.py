@@ -216,84 +216,6 @@ while running:
 				event.key == pygame.K_q:
 				running = False
 
-		# 게임 오버 상태에서 버튼 클릭 처리 (마우스 다운 시 즉시 반응)
-		if game_over and game_page and overlay_index > 20:
-			if event.type == pygame.MOUSEBUTTONDOWN:
-				if close_btn.check_click(event):
-					running = False
-				elif replay_btn.check_click(event):
-					note_count = 0
-					pygame.mixer.set_num_channels(len(notes_list))
-
-					text_group.empty()
-					tile_group.empty()
-					score = 0
-					speed = 0
-					overlay_index = 0
-					game_over = False
-					
-					# 롱프레스 상태 초기화
-					mouse_pressed = False
-					pressed_column = -1
-					current_column = -1
-					long_press_active = False
-					drag_touch_active = False
-					last_touched_tile_id = -1
-					longpress_start_tile_id = -1
-					longpress_timer = 0  # 롱프레스 타이머 초기화
-					combo_count = 0  # 콤보 카운터 초기화
-					combo_start_tile_id = -1  # 콤보 시작 타일 ID 초기화
-					last_touched_column = -1  # 마지막 터치된 열 번호 초기화
-					
-					# 타일 ID 카운터 초기화
-					reset_tile_id_counter()
-
-					time_counter = Counter(win, gameover_font, game_x, game_y)
-
-					x = random.randint(0, 3)
-					t = Tile(x * TILE_WIDTH, -TILE_HEIGHT, win, game_x, game_y)
-					tile_group.add(t)
-					
-					# 게임 재시작 시 배경음악 멈춤 (게임 중이므로)
-					pygame.mixer.music.stop()
-				elif menu_btn.check_click(event):
-					# 모든 게임 상태 초기화
-					text_group.empty()
-					tile_group.empty()
-					score = 0
-					speed = 0
-					overlay_index = 0
-					game_over = False
-					
-					# 롱프레스 상태 초기화
-					mouse_pressed = False
-					pressed_column = -1
-					current_column = -1
-					long_press_active = False
-					drag_touch_active = False
-					last_touched_tile_id = -1
-					longpress_start_tile_id = -1
-					longpress_timer = 0  # 롱프레스 타이머 초기화
-					combo_count = 0  # 콤보 카운터 초기화
-					combo_start_tile_id = -1  # 콤보 시작 타일 ID 초기화
-					last_touched_column = -1  # 마지막 터치된 열 번호 초기화
-					
-					# 타일 ID 카운터 초기화
-					reset_tile_id_counter()
-					
-					# 게임 재시작 시 곡 선택 화면으로 이동
-					game_page = False
-					song_select_page = True
-					pygame.mixer.music.play(loops=-1)  # 배경음악 재생
-				elif sound_btn.check_click(event):
-					sound_on = not sound_on
-					if sound_on:
-						sound_btn.update_image(sound_on_img)
-						pygame.mixer.music.play(loops=-1)
-					else:
-						sound_btn.update_image(sound_off_img)
-						pygame.mixer.music.stop()
-
 		if event.type == pygame.MOUSEBUTTONDOWN and not game_over:
 			# 마우스 위치를 게임 창 기준으로 변환
 			pos = event.pos
@@ -615,11 +537,84 @@ while running:
 					win.blit(img2, (game_x + WIDTH // 2 - img2.get_width() / 2, game_y + 375))
 					win.blit(img3, (game_x + WIDTH // 2 - img3.get_width() / 2, game_y + 420))
 
-					# 버튼 그리기 (클릭 처리는 이벤트 루프에서 처리)
-					close_btn.draw(win)
-					replay_btn.draw(win)
-					menu_btn.draw(win)
-					sound_btn.draw(win)
+					if close_btn.draw(win):
+						running = False
+
+					if replay_btn.draw(win):
+						note_count = 0
+						pygame.mixer.set_num_channels(len(notes_list))
+
+						text_group.empty()
+						tile_group.empty()
+						score = 0
+						speed = 0
+						overlay_index = 0
+						game_over = False
+						
+						# 롱프레스 상태 초기화
+						mouse_pressed = False
+						pressed_column = -1
+						current_column = -1
+						long_press_active = False
+						drag_touch_active = False
+						last_touched_tile_id = -1
+						longpress_start_tile_id = -1
+						longpress_timer = 0  # 롱프레스 타이머 초기화
+						combo_count = 0  # 콤보 카운터 초기화
+						combo_start_tile_id = -1  # 콤보 시작 타일 ID 초기화
+						last_touched_column = -1  # 마지막 터치된 열 번호 초기화
+						
+						# 타일 ID 카운터 초기화
+						reset_tile_id_counter()
+
+						time_counter = Counter(win, gameover_font, game_x, game_y)
+
+						x = random.randint(0, 3)
+						t = Tile(x * TILE_WIDTH, -TILE_HEIGHT, win, game_x, game_y)
+						tile_group.add(t)
+						
+						# 게임 재시작 시 배경음악 멈춤 (게임 중이므로)
+						pygame.mixer.music.stop()
+
+					if menu_btn.draw(win):
+						# 모든 게임 상태 초기화
+						text_group.empty()
+						tile_group.empty()
+						score = 0
+						speed = 0
+						overlay_index = 0
+						game_over = False
+						
+						# 롱프레스 상태 초기화
+						mouse_pressed = False
+						pressed_column = -1
+						current_column = -1
+						long_press_active = False
+						drag_touch_active = False
+						last_touched_tile_id = -1
+						longpress_start_tile_id = -1
+						longpress_timer = 0  # 롱프레스 타이머 초기화
+						combo_count = 0  # 콤보 카운터 초기화
+						combo_start_tile_id = -1  # 콤보 시작 타일 ID 초기화
+						last_touched_column = -1  # 마지막 터치된 열 번호 초기화
+						
+						# 타일 ID 카운터 초기화
+						reset_tile_id_counter()
+						
+						# 게임 재시작 시 곡 선택 화면으로 이동
+						game_page = False
+						song_select_page = True
+						pygame.mixer.music.play(loops=-1)  # 배경음악 재생
+
+					if sound_btn.draw(win):
+						sound_on = not sound_on
+				
+						if sound_on:
+							sound_btn.update_image(sound_on_img)
+							pygame.mixer.music.play(loops=-1)
+						else:
+							sound_btn.update_image(sound_off_img)
+							pygame.mixer.music.stop()
 				else:
 					overlay_index += 1
 					if overlay_index % 3 == 0:
