@@ -10,7 +10,7 @@ plt.rcParams['font.family'] = 'NanumGothic'
 plt.rcParams['axes.unicode_minus'] = False
 
 # ─── 설정 ───────────────────────────────────────────────────────────
-PORT            = 'COM5'
+PORT            = '/dev/ttyUSB0'
 BAUDRATE        = 2000000
 NUM_ROWS        = 80            # 80행
 NUM_COLS        = 64            # 63열
