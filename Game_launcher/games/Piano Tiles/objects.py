@@ -99,7 +99,7 @@ class Tile(pygame.sprite.Sprite):
 		self.win.blit(self.surface, (self.game_x + self.rect.x, self.game_y + self.rect.y))
 
 class Text(pygame.sprite.Sprite):
-	def __init__(self, text, font, pos, win, game_x=0, game_y=0):
+	def __init__(self, text, font, pos, win, game_x=0, game_y=0, color=(255, 255, 255)):
 		super(Text, self).__init__()
 		self.win = win
 		self.game_x = game_x
@@ -107,7 +107,7 @@ class Text(pygame.sprite.Sprite):
 
 		self.x,self.y = pos
 		self.initial = self.y
-		self.image = font.render(text, True, (255, 255, 255))
+		self.image = font.render(text, True, color)
 
 	def update(self, speed):
 		self.y += speed
