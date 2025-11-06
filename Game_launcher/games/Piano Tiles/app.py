@@ -105,9 +105,9 @@ game_y = (height - HEIGHT) // 2
 # 버튼들을 대칭적으로 배치: replay는 중앙, close와 sound는 양쪽에 같은 거리로
 button_spacing = 120  # 버튼들 사이의 거리
 close_btn = Button(close_img, (36, 36), game_x + WIDTH - 60, game_y + 20)  # 오른쪽 위 모서리
-replay_btn = Button(replay_img, (72, 72), game_x + WIDTH // 2 - button_spacing - 36 - 20, game_y + HEIGHT//2 + 180 + 25)
-menu_btn = Button(menu_img, (120, 120), game_x + WIDTH // 2 - 60, game_y + HEIGHT//2 + 180)
-sound_btn = Button(sound_on_img, (72, 72), game_x + WIDTH // 2 + button_spacing - 36 + 20, game_y + HEIGHT//2 + 180 + 25)
+replay_btn = Button(replay_img, (108, 108), game_x + WIDTH // 2 - button_spacing - 36 - 40, game_y + HEIGHT//2 + 180 + 25)
+menu_btn = Button(menu_img, (180, 180), game_x + WIDTH // 2 - 90, game_y + HEIGHT//2 + 170)
+sound_btn = Button(sound_on_img, (108, 108), game_x + WIDTH // 2 + button_spacing - 36, game_y + HEIGHT//2 + 180 + 25)
 
 clock = pygame.time.Clock()
 FPS = 30
