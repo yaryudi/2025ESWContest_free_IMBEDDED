@@ -200,6 +200,13 @@ class Button(pygame.sprite.Sprite):
 	def update_image(self, img):
 		self.image = pygame.transform.scale(img, self.scale)
 
+	def check_click(self, event):
+		"""마우스 다운 이벤트를 받아서 버튼이 클릭되었는지 확인 (즉시 반응)"""
+		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # 왼쪽 마우스 버튼
+			if self.rect.collidepoint(event.pos):
+				return True
+		return False
+
 	def draw(self, win):
 		action = False
 		pos = pygame.mouse.get_pos()
