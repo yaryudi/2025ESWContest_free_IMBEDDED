@@ -46,33 +46,33 @@ RAINBOW_COLORS = [
 
 # IMAGES *********************************************************************
 
-bg_img = pygame.image.load('Assets/bg.jpg')
+bg_img = pygame.image.load('Assets/bg.png')
 bg_img = pygame.transform.scale(bg_img, (WIDTH, HEIGHT))
 
-piano_img = pygame.image.load('Assets/piano.jpg')
+piano_img = pygame.image.load('Assets/piano.png')
 piano_img = pygame.transform.scale(piano_img, (318, 318))
 
-title_img = pygame.image.load('Assets/title.jpg')
+title_img = pygame.image.load('Assets/title.png')
 title_img = pygame.transform.scale(title_img, (300, 75))
 
-start_img = pygame.image.load('Assets/start.jpg')
+start_img = pygame.image.load('Assets/start.png')
 start_img = pygame.transform.scale(start_img, (360, 120))
 start_rect = start_img.get_rect(center=(WIDTH//2, HEIGHT-120))
 
-overlay = pygame.image.load('Assets/red overlay.jpg')
+overlay = pygame.image.load('Assets/red overlay.png')
 overlay = pygame.transform.scale(overlay, (WIDTH, HEIGHT))
 
 # 곡 선택 화면용 이미지들
-song_select_bg = pygame.image.load('Assets/bg.jpg')
+song_select_bg = pygame.image.load('Assets/bg.png')
 song_select_bg = pygame.transform.scale(song_select_bg, (WIDTH, HEIGHT))
 
 # 곡 선택 버튼들 (실제 이미지 파일들 사용)
 song_buttons = []
 song_images = [
-    ('twinkle_twinkle', 'Assets/twinkle_twinkle.jpg'),
-    ('HBD', 'Assets/HBD.jpg'),
-    ('three_bears', 'Assets/three_bears.jpg'),
-    ('airplane', 'Assets/airplane.jpg')
+    ('twinkle_twinkle', 'Assets/twinkle_twinkle.png'),
+    ('HBD', 'Assets/HBD.png'),
+    ('three_bears', 'Assets/three_bears.png'),
+    ('airplane', 'Assets/airplane.png')
 ]
 song_spacing = HEIGHT // 5 * 5 # 높이 5의 배수로 맞추기
 
@@ -87,14 +87,14 @@ for i, (song_name, image_path) in enumerate(song_images):
 
 # BUTTON IMAGES ********************************************************************
 
-close_img = pygame.image.load('Assets/closeBtn.jpg')
+close_img = pygame.image.load('Assets/closeBtn.png')
 # close 버튼 이미지를 검정색으로 변경
 close_img.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT)
 
-replay_img = pygame.image.load('Assets/replay.jpg')
-sound_off_img = pygame.image.load("Assets/soundOffBtn.jpg")
-sound_on_img = pygame.image.load("Assets/soundOnBtn.jpg")
-menu_img = pygame.image.load('Assets/menu.jpg')
+replay_img = pygame.image.load('Assets/replay.png')
+sound_off_img = pygame.image.load("Assets/soundOffBtn.png")
+sound_on_img = pygame.image.load("Assets/soundOnBtn.png")
+menu_img = pygame.image.load('Assets/menu.png')
 
 # 게임 창이 중앙에 오도록 계산
 game_x = (width - WIDTH) // 2
